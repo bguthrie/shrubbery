@@ -4,8 +4,14 @@
 (defprotocol Spy
   (calls [t]))
 
-(defn call-count [spy method & args]
-  (-> spy calls method count))
+(defn call-count
+  ([spy method args]
+  (->>
+     (-> spy calls method)
+     (filter #(= % args))
+     (count)))
+  ([spy method]
+   (-> spy calls method count)))
 
 (defn received?
   ([spy method] (received? spy method 1))
@@ -35,13 +41,13 @@
        ~@mimpls
        )))
 
-(defmacro spying-proxy
+(defmacro spy
   "Given a protocol and an implementation of that protocol, returns a new implementation of that protocol that counts
   the number of times each method was received. The returned protocol also implements `Spy`, which exposes those
   counts. Each method is proxied to the given impl after capture."
   [proto impl]
   (let [atom-sym (gensym "counts")
-        recorder `(fn [m# & args#] (swap! ~atom-sym assoc m# (conj (-> ~atom-sym deref m#) args#)))
+        recorder `(fn [m# & args#] (swap! ~atom-sym assoc m# (conj (-> ~atom-sym deref m#) (rest args#))))
         mimpls (map (partial proxied-fn impl recorder) (fn-names proto))]
     `(let [~atom-sym (atom {})]
        (reify
