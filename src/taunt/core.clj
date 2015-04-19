@@ -1,14 +1,42 @@
 (ns taunt.core
-  (require [clojure.repl :refer [pst]]))
+  (require [clojure.repl :refer [pst]])
+  (:import (clojure.lang IFn ArraySeq)
+           (java.util.regex Pattern)))
 
 (defprotocol Spy
   (calls [t]))
+
+(defprotocol Matcher
+  (matches? [matcher value]))
+
+(extend-protocol Matcher
+  IFn
+  (matches? [matcher value]
+    (matcher value))
+  Pattern
+  (matches? [matcher value]
+    (-> matcher
+        (re-seq value)
+        (first)
+        (boolean)))
+  ArraySeq
+  (matches? [matcher value]
+    (->> (map matches? value matcher)
+         (every? identity)))
+  Object
+  (matches? [matcher value]
+    (= matcher value))
+  )
+
+(def anything
+  (reify Matcher
+    (matches? [_ _] true)))
 
 (defn call-count
   ([spy method args]
   (->>
      (-> spy calls method)
-     (filter #(= % args))
+     (filter #(matches? % args))
      (count)))
   ([spy method]
    (-> spy calls method count)))
