@@ -1,4 +1,4 @@
-(ns taunt.core
+(ns shrubbery.core
   (require [clojure.repl :refer [pst]])
   (:import (clojure.lang IFn ArraySeq)
            (java.util.regex Pattern)))

@@ -1,6 +1,6 @@
-(ns taunt.core-test
+(ns shrubbery.core-test
   (:require [clojure.test :refer :all]
-            [taunt.core :refer :all]))
+            [shrubbery.core :refer :all]))
 
 (defprotocol AProtocol
   (foo [this])

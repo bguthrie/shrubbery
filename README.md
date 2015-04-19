@@ -1,4 +1,4 @@
-# taunt
+# shrubbery
 
 A stubbing, spying, and light mocking library that works with protocols. Does not attempt to provide any runtime
 var replacement.
