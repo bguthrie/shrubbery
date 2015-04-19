@@ -4,9 +4,13 @@
            (java.util.regex Pattern)))
 
 (defprotocol Spy
+  "A protocol for objects that expose call counts. `calls` should return a map of function names to lists of received
+  args, one for each time the function is called."
   (calls [t]))
 
 (defprotocol Matcher
+  "A protocol for defining argument equality matching. Default implementations are provided for `Object` (equality),
+  `Pattern` (regexp matching), and `IFn` (execution)."
   (matches? [matcher value]))
 
 (extend-protocol Matcher
@@ -29,10 +33,14 @@
   )
 
 (def anything
+  "A Matcher that always returns true."
   (reify Matcher
     (matches? [_ _] true)))
 
 (defn call-count
+  "Given a spy, a keyword method name, and an optional vector of args, return the number of times the spy received
+  the method. If given args, filters the call count by those matching args. Each arg must implement the `Matcher`
+  protocol."
   ([spy method args]
   (->>
      (-> spy calls method)
@@ -43,9 +51,9 @@
 
 (defn received?
   ([spy method] (received? spy method 1))
-  ([spy method count] (= (call-count spy method) count)))
+  ([spy method count] (>= (call-count spy method) count)))
 
-(defn fn-names [proto]
+(defn- fn-names [proto]
   (-> proto resolve var-get :sigs))
 
 (defn proxied-fn [impl f [m sig]]
@@ -71,7 +79,7 @@
 
 (defmacro spy
   "Given a protocol and an implementation of that protocol, returns a new implementation of that protocol that counts
-  the number of times each method was received. The returned protocol also implements `Spy`, which exposes those
+  the number of times each method was received. The returned implementation also implements `Spy`, which exposes those
   counts. Each method is proxied to the given impl after capture."
   [proto impl]
   (let [atom-sym (gensym "counts")

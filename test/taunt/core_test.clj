@@ -91,5 +91,19 @@
              (call-count subject :baz ["hello" anything])))
       ))
 
-  (testing "a call counter with arbitrary matching")
+  (testing "a call counter with arbitrary matching"
+    (let [subject (spy AProtocol proto)]
+      (is (= 0
+             (call-count subject :baz)))
+      (bar subject 2)
+      (is (= 1
+             (call-count subject :bar [#(> % 1)])))
+      (is (= 0
+             (call-count subject :bar [#(> % 2)])))
+      (bar subject 1)
+      (is (= 2
+             (call-count subject :bar [#(> % 0)])))
+      (is (= 1
+             (call-count subject :bar [#(> % 1)])))
+    ))
   )
