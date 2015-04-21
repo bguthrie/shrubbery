@@ -1,6 +1,7 @@
 (ns shrubbery.core-test
   (:require [clojure.test :refer :all]
-            [shrubbery.core :refer :all]))
+            [shrubbery.core :refer :all]
+            [shrubbery.test :refer :all]))
 
 (defprotocol AProtocol
   (foo [this])
@@ -32,12 +33,17 @@
     (let [subject (spy AProtocol proto)]
       (is (= 0
              (call-count subject :bar)))
-      (is (= :hello-bar
-             (bar subject "yes")))
+
+      (bar subject "yes")
       (is (= 0
              (call-count subject :bar ["no"])))
       (is (= 1
              (call-count subject :bar ["yes"])))
+
+      (bar subject :symbol)
+      (println (calls subject))
+      (is (= 1
+             (call-count subject :bar [:symbol])))
     ))
 
   (testing "a call counter with regexp matching"
@@ -107,3 +113,16 @@
              (call-count subject :bar [#(> % 1)])))
     ))
   )
+
+(deftest test-received?
+  (testing "a simple received? call"
+    (let [subject (spy AProtocol proto)]
+      (foo subject)
+      (is (received? subject :foo))
+      (is (not (received? subject :bar)))
+
+      (bar subject "hello")
+      (is (received? subject :bar))
+      (is (received? subject :bar ["hello"]))
+      (is (not (received? subject :bar ["nonsense"])))
+      )))

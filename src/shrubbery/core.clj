@@ -1,7 +1,5 @@
 (ns shrubbery.core
-  (require [clojure.repl :refer [pst]])
-  (:import (clojure.lang IFn ArraySeq)
-           (java.util.regex Pattern)))
+  (require [clojure.repl :refer [pst]]))
 
 (defprotocol Spy
   "A protocol for objects that expose call counts. `calls` should return a map of function names to lists of received
@@ -14,20 +12,20 @@
   (matches? [matcher value]))
 
 (extend-protocol Matcher
-  IFn
+  clojure.lang.Fn
   (matches? [matcher value]
     (matcher value))
-  Pattern
+  java.util.regex.Pattern
   (matches? [matcher value]
     (-> matcher
         (re-seq value)
         (first)
         (boolean)))
-  ArraySeq
+  clojure.lang.ArraySeq
   (matches? [matcher value]
     (->> (map matches? value matcher)
          (every? identity)))
-  Object
+  java.lang.Object
   (matches? [matcher value]
     (= matcher value))
   )
@@ -39,8 +37,8 @@
 
 (defn call-count
   "Given a spy, a keyword method name, and an optional vector of args, return the number of times the spy received
-  the method. If given args, filters the call count by those matching args. Each arg must implement the `Matcher`
-  protocol."
+  the method. If given args, filters the list of calls by matching the given args. Matched args may implement the `Matcher`
+  protocol; the default implementation for `Object` is `=`."
   ([spy method args]
   (->>
      (-> spy calls method)
@@ -50,8 +48,8 @@
    (-> spy calls method count)))
 
 (defn received?
-  ([spy method] (received? spy method 1))
-  ([spy method count] (>= (call-count spy method) count)))
+  ([spy method] (>= (call-count spy method) 1))
+  ([spy method args] (>= (call-count spy method args) 1)))
 
 (defn- fn-names [proto]
   (-> proto resolve var-get :sigs))
