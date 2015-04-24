@@ -39,41 +39,41 @@
   "Given a spy, a keyword method name, and an optional vector of args, return the number of times the spy received
   the method. If given args, filters the list of calls by matching the given args. Matched args may implement the `Matcher`
   protocol; the default implementation for `Object` is `=`."
+  ([spy method]
+   (-> spy calls method count))
   ([spy method args]
   (->>
      (-> spy calls method)
      (filter #(matches? % args))
-     (count)))
-  ([spy method]
-   (-> spy calls method count)))
+     (count))))
 
 (defn received?
   ([spy method] (>= (call-count spy method) 1))
   ([spy method args] (>= (call-count spy method args) 1)))
 
-(defn- fn-names [proto]
+(defn- fn-sigs [proto]
   (-> proto resolve var-get :sigs))
 
-(defn proxied-fn [impl f [m sig]]
+(defn proto-fn-with-proxy
   "Given a protocol implementation, a function with side effects, and a protcol function signature, return
   a syntax-quoted protocol method implementation that calls the function, then proxies to the given implementation."
+  [impl f [m sig]]
   (let [f-sym (-> m name symbol)
         args (-> sig :arglists first)]
-    `(~f-sym                         ; Declare an implementation of the protocol function.
-       ~args                         ; Render a vector with the proto-defined args.
-       (~f ~m ~@args)                ; Call the given fn with the method name and splice any remaining args.
-       (~f-sym ~impl ~@(rest args))) ; Call the underlying impl and pass whatever args remain.
+    `(~f-sym ~args                   ; (foo [this a b]
+       (~f ~m ~@args)                ;   ((fn [method this a b] ...) :foo this a b)
+       (~f-sym ~impl ~@(rest args))) ;   (foo proto-impl a b))
     ))
 
-(defmacro proxy-protocol [proto impl f]
-  "Given a protocol, an implementation of that protocol, and some function f, presumably with side effects, returns
-  a new implementation of that protocol that calls f with its method name and any remaining args. Each method returns
-  the value of that method call as applied to the given impl."
-  (let [mimpls (map (partial proxied-fn impl f) (fn-names proto))]
-    `(reify
-       ~proto
-       ~@mimpls
-       )))
+(defn proto-fn-with-impl
+  "Given a function and a protocol function signature, return a syntax-quoted protocol method implementation that
+  calls the function."
+  [f [m sig]]
+  (let [f-sym (-> m name symbol)
+        args (-> sig :arglists first)]
+    `(~f-sym ~args                   ; (foo [this a b]
+       (~f ~m ~@args))               ;   ((fn [method this a b] ...) :foo this a b)
+    ))
 
 (defmacro spy
   "Given a protocol and an implementation of that protocol, returns a new implementation of that protocol that counts
@@ -82,7 +82,7 @@
   [proto impl]
   (let [atom-sym (gensym "counts")
         recorder `(fn [m# & args#] (swap! ~atom-sym assoc m# (conj (-> ~atom-sym deref m#) (rest args#))))
-        mimpls (map (partial proxied-fn impl recorder) (fn-names proto))]
+        mimpls (map (partial proto-fn-with-proxy impl recorder) (fn-sigs proto))]
     `(let [~atom-sym (atom {})]
        (reify
          ~proto
@@ -90,3 +90,20 @@
          Spy
          (calls [t#] (deref ~atom-sym))
          ))))
+
+(defn wrap-fn [impls m]
+  (if-let [o (impls m)]
+    `(fn [& args#] (if (fn? ~o) (apply ~o args#) ~o))
+    `(fn [& args#] nil)))
+
+(defmacro stub
+  "Given a protocol and a hashmap of function implementations, returns a new implementation of that protocol with those
+  implementations. Essentially sugar for `reify` with added test-friendliness."
+  [proto impls]
+  (let [sigs (fn-sigs proto)
+        fns (map (fn [[m _]] (wrap-fn impls m)) sigs)
+        mimpls (map proto-fn-with-impl fns sigs)]
+    `(reify
+       ~proto
+       ~@mimpls)
+    ))

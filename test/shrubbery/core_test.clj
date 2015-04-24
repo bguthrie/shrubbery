@@ -41,7 +41,6 @@
              (call-count subject :bar ["yes"])))
 
       (bar subject :symbol)
-      (println (calls subject))
       (is (= 1
              (call-count subject :bar [:symbol])))
     ))
@@ -126,3 +125,35 @@
       (is (received? subject :bar ["hello"]))
       (is (not (received? subject :bar ["nonsense"])))
       )))
+
+(deftest test-stub
+  (testing "with no provided implementations"
+    (let [subject (stub AProtocol {})]
+      (is (nil? (foo subject)))
+      (is (nil? (bar subject :hello)))
+      (is (nil? (baz subject :hello :world)))
+      ))
+
+  (testing "with a basic fn implementation"
+    (let [some-fn (fn [& args] :foo)
+          subject (stub AProtocol {:foo some-fn :bar some-fn :baz some-fn})]
+      (is (= :foo (foo subject)))
+      (is (= :foo (bar subject :hello)))
+      (is (= :foo (baz subject :hello :world)))
+      ))
+
+  (testing "with a simple primitive rather than a function"
+    (let [subject (stub AProtocol {:foo 1 :bar "two" :baz 'three})]
+      (is (= 1 (foo subject)))
+      (is (= "two" (bar subject :hello)))
+      (is (= 'three (baz subject :hello :world)))
+      ))
+
+  (testing "with a var that resolves to a primitive"
+    (let [some-o "some object"
+          subject (stub AProtocol {:foo some-o :bar some-o :baz some-o})]
+      (is (= "some object" (foo subject)))
+      (is (= "some object" (bar subject :hello)))
+      (is (= "some object" (baz subject :hello :world)))
+      ))
+  )
