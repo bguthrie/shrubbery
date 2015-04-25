@@ -1,6 +1,6 @@
 # shrubbery
 
-A stubbing, spying, and mocking library for Clojure protocols. 
+A stubbing, spying, and mocking library for Clojure protocols.
 
 ## Purpose
 
@@ -103,6 +103,8 @@ Mocks combine the call count capabilities of a spy with the sugar of stubs.
 ```
 
 ## License
+
+![Then when you have found the shrubbery](https://31.media.tumblr.com/e72f365e1656130bbaebd2a2431c958b/tumblr_nia9ciTmpj1u0k6deo4_250.gif)
 
 Copyright © 2015 Brian Guthrie
 
