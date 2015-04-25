@@ -72,7 +72,7 @@
   (let [f-sym (-> m name symbol)
         args (-> sig :arglists first)]
     `(~f-sym ~args                   ; (foo [this a b]
-       (~f ~m ~@args))               ;   ((fn [method this a b] ...) :foo this a b)
+       (~f ~@args))               ;   ((fn [method this a b] ...) :foo this a b)
     ))
 
 (defmacro spy
@@ -91,14 +91,14 @@
          (calls [t#] (deref ~atom-sym))
          ))))
 
-(defn wrap-fn [impls m]
+(defn- wrap-fn [impls m]
   (if-let [o (impls m)]
     `(fn [& args#] (if (fn? ~o) (apply ~o args#) ~o))
     `(fn [& args#] nil)))
 
 (defmacro stub
   "Given a protocol and a hashmap of function implementations, returns a new implementation of that protocol with those
-  implementations. Essentially sugar for `reify` with added test-friendliness."
+  implementations. If no function implementation is given for a method, that method will return `nil` when called."
   [proto impls]
   (let [sigs (fn-sigs proto)
         fns (map (fn [[m _]] (wrap-fn impls m)) sigs)
@@ -107,3 +107,10 @@
        ~proto
        ~@mimpls)
     ))
+
+(defmacro mock
+  "Given a protocol and a hashmap of function implementations, returns a new implementation of that protocol with those
+  implementations. The returned implementation is also a spy, allowing you to inspect and assert against its calls.
+  See `spy` and `stub`."
+  [proto impls]
+  `(spy ~proto (stub ~proto ~impls)))

@@ -134,7 +134,7 @@
       (is (nil? (baz subject :hello :world)))
       ))
 
-  (testing "with a basic fn implementation"
+  (testing "with a let-binding that resolves to a function"
     (let [some-fn (fn [& args] :foo)
           subject (stub AProtocol {:foo some-fn :bar some-fn :baz some-fn})]
       (is (= :foo (foo subject)))
@@ -142,18 +142,35 @@
       (is (= :foo (baz subject :hello :world)))
       ))
 
-  (testing "with a simple primitive rather than a function"
+  (testing "with an immediate simple primitive"
     (let [subject (stub AProtocol {:foo 1 :bar "two" :baz 'three})]
       (is (= 1 (foo subject)))
       (is (= "two" (bar subject :hello)))
       (is (= 'three (baz subject :hello :world)))
       ))
 
-  (testing "with a var that resolves to a primitive"
+  (testing "with a let-binding that resolves to a primitive"
     (let [some-o "some object"
           subject (stub AProtocol {:foo some-o :bar some-o :baz some-o})]
       (is (= "some object" (foo subject)))
       (is (= "some object" (bar subject :hello)))
       (is (= "some object" (baz subject :hello :world)))
+      ))
+  )
+
+(deftest test-mock
+  (testing "with no provided implementations"
+    (let [subject (mock AProtocol {})]
+      (is (nil? (foo subject)))
+      (is (received? subject :foo))
+      ))
+
+  (testing "with a basic implementation"
+    (let [subject (mock AProtocol {:bar (fn [this that] that)})]
+      (is (= "wow" (bar subject "wow")))
+      (is (received? subject :bar))
+      (is (not (received? subject :foo)))
+      (is (received? subject :bar ["wow"]))
+      (is (not (received? subject :bar ["woo"])))
       ))
   )
