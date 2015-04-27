@@ -4,12 +4,16 @@
 (defprotocol Spy
   "A protocol for objects that expose call counts. `calls` should return a map of function names to lists of received
   args, one for each time the function is called."
-  (calls [t]))
+  (calls [t])
+  (proxied [t]))
 
 (defprotocol Matcher
   "A protocol for defining argument equality matching. Default implementations are provided for `Object` (equality),
   `Pattern` (regexp matching), and `IFn` (execution)."
   (matches? [matcher value]))
+
+(defprotocol Stub
+  (protocol [t]))
 
 (extend-protocol Matcher
   clojure.lang.Fn
@@ -79,16 +83,17 @@
   "Given a protocol and an implementation of that protocol, returns a new implementation of that protocol that counts
   the number of times each method was received. The returned implementation also implements `Spy`, which exposes those
   counts. Each method is proxied to the given impl after capture."
-  [proto impl]
+  [proto proxy]
   (let [atom-sym (gensym "counts")
         recorder `(fn [m# & args#] (swap! ~atom-sym assoc m# (conj (-> ~atom-sym deref m#) (rest args#))))
-        mimpls (map (partial proto-fn-with-proxy impl recorder) (fn-sigs proto))]
+        mimpls (map (partial proto-fn-with-proxy proxy recorder) (fn-sigs proto))]
     `(let [~atom-sym (atom {})]
        (reify
          ~proto
          ~@mimpls
          Spy
          (calls [t#] (deref ~atom-sym))
+         (proxied [t#] ~proxy)
          ))))
 
 (defn- wrap-fn [impls m]
@@ -107,7 +112,9 @@
          mimpls (map proto-fn-with-impl fns sigs)]
      `(reify
         ~proto
-        ~@mimpls)
+        ~@mimpls
+        Stub
+        (protocol [t#] ~proto))
      )))
 
 (defmacro mock
@@ -115,6 +122,6 @@
   implementations. The returned implementation is also a spy, allowing you to inspect and assert against its calls.
   See `spy` and `stub`."
   ([proto]
-  `(mock ~proto {}))
+   `(mock ~proto {}))
   ([proto impls]
    `(spy ~proto (stub ~proto ~impls))))
