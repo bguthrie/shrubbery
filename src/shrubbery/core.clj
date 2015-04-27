@@ -99,18 +99,22 @@
 (defmacro stub
   "Given a protocol and a hashmap of function implementations, returns a new implementation of that protocol with those
   implementations. If no function implementation is given for a method, that method will return `nil` when called."
-  [proto impls]
-  (let [sigs (fn-sigs proto)
-        fns (map (fn [[m _]] (wrap-fn impls m)) sigs)
-        mimpls (map proto-fn-with-impl fns sigs)]
-    `(reify
-       ~proto
-       ~@mimpls)
-    ))
+  ([proto]
+  `(stub ~proto {}))
+  ([proto impls]
+   (let [sigs (fn-sigs proto)
+         fns (map (fn [[m _]] (wrap-fn impls m)) sigs)
+         mimpls (map proto-fn-with-impl fns sigs)]
+     `(reify
+        ~proto
+        ~@mimpls)
+     )))
 
 (defmacro mock
   "Given a protocol and a hashmap of function implementations, returns a new implementation of that protocol with those
   implementations. The returned implementation is also a spy, allowing you to inspect and assert against its calls.
   See `spy` and `stub`."
-  [proto impls]
-  `(spy ~proto (stub ~proto ~impls)))
+  ([proto]
+  `(mock ~proto {}))
+  ([proto impls]
+   `(spy ~proto (stub ~proto ~impls))))
