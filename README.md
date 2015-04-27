@@ -29,6 +29,12 @@ Clojure application, or do not otherwise make much use of protocols, you may not
 Additionally, for more background on mock objects, you may find it helpful to read Martin Fowler's classic article on
 the subject, [Mocks Aren't Stubs](http://martinfowler.com/articles/mocksArentStubs.html).
 
+## Releases
+
+Shrubbery is published to [clojars.org](https://clojars.org/com.gearswithingears/shrubbery).
+
+[![Clojars Project](http://clojars.org/com.gearswithingears/shrubbery/latest-version.svg)](http://clojars.org/com.gearswithingears/shrubbery)
+
 ## Usage
 
 ### Stubs
