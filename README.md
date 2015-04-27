@@ -141,6 +141,30 @@ call `stub` with the given arguments, then wrap that stub in a `spy`.
     ))
 ```
 
+### Matchers
+
+Sometimes it's helpful, when checking the spies and mocks for the arguments they're called with, to perform partial
+matching rather than full equality matching. Shrubbery defines a protocol, `Matcher`, with one function, `matches?`,
+implements some special match cases. Regular expressions are one notable case where this is useful. For example:
+
+```clojure
+(let [mock-db (mock DbClient)]
+  (select mock-db "select * from users")
+  (is (received? mock-db :select ["select * from users"])) ; true
+  (is (received? mock-db :select ["select"]))              ; false
+  (is (received? mock-db :select [#"select"]))             ; true
+  (is (received? mock-db :select [#"select$"]))            ; false
+  (is (received? mock-db :select [anything]))              ; true
+  )
+```
+
+Shrubbery's `match?` function performs a standard `=` check by default, but defines several special cases:
+
+ * `java.util.regex.Pattern` objects use `re-seq` on the received object
+ * `clojure.lang.ArraySeq` objects performs `match?` on all members of the received object
+ * `clojure.lang.Fn` objects are invoked directly with the received object
+ * `anything` is a special matcher that always returns true
+ 
 ## License
 
 ![Then when you have found the shrubbery](https://31.media.tumblr.com/e72f365e1656130bbaebd2a2431c958b/tumblr_nia9ciTmpj1u0k6deo4_250.gif)
