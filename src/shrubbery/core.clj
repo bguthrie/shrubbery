@@ -13,6 +13,7 @@
   (matches? [matcher value]))
 
 (defprotocol Stub
+  "A protocol for defining stubs. `protocol` should return a reference to the protocol that this stub implements."
   (protocol [t]))
 
 (extend-protocol Matcher
