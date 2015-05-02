@@ -1,4 +1,4 @@
-(ns shrubbery.test
+(ns shrubbery.clojure.test
   "An extension to `clojure.test`'s `is` macro for working with mocks."
   (require [clojure.test :refer [assert-expr do-report]]
            [shrubbery.core :refer :all]))

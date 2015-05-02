@@ -1,5 +1,4 @@
-(ns shrubbery.core
-  (require [clojure.repl :refer [pst]]))
+(ns shrubbery.core)
 
 (defprotocol Spy
   "A protocol for objects that expose call counts. `calls` should return a map of function names to lists of received
@@ -54,11 +53,9 @@
 
 (defmacro received?
   ([spy method]
-   (let [method-keyword (keyword (str method))]
-     `(>= (call-count ~spy ~method-keyword 1))))
+   `(>= (call-count ~spy ~(-> method str keyword)) 1))
   ([spy method args]
-   (let [method-keyword (keyword (str method))]
-     `(>= (call-count ~spy ~method-keyword ~args) 1))))
+   `(>= (call-count ~spy ~(-> method str keyword) ~args) 1)))
 
 (defn- fn-sigs [proto]
   (-> proto resolve var-get :sigs))

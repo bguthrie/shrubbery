@@ -1,7 +1,7 @@
 (ns shrubbery.core-test
   (:require [clojure.test :refer :all]
             [shrubbery.core :refer :all]
-            [shrubbery.test :refer :all]))
+            [shrubbery.clojure.test :refer :all]))
 
 (defprotocol AProtocol
   (foo [this])
