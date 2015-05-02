@@ -89,13 +89,13 @@
   (testing "a simple received? call"
     (let [subject (spy AProtocol proto)]
       (foo subject)
-      (is (received? subject :foo))
-      (is (not (received? subject :bar)))
+      (is (received? subject foo))
+      (is (not (received? subject bar)))
 
       (bar subject "hello")
-      (is (received? subject :bar))
-      (is (received? subject :bar ["hello"]))
-      (is (not (received? subject :bar ["nonsense"])))
+      (is (received? subject bar))
+      (is (received? subject bar ["hello"]))
+      (is (not (received? subject bar ["nonsense"])))
       )))
 
 (deftest test-stub
@@ -141,21 +141,21 @@
   (testing "with no provided implementations"
     (let [subject (mock AProtocol)]
       (is (nil? (foo subject)))
-      (is (received? subject :foo))
+      (is (received? subject foo))
       ))
 
   (testing "with an empty implementation"
     (let [subject (mock AProtocol {})]
       (is (nil? (foo subject)))
-      (is (received? subject :foo))
+      (is (received? subject foo))
       ))
 
   (testing "with a basic implementation"
     (let [subject (mock AProtocol {:bar (fn [this that] that)})]
       (is (= "wow" (bar subject "wow")))
-      (is (received? subject :bar))
-      (is (not (received? subject :foo)))
-      (is (received? subject :bar ["wow"]))
-      (is (not (received? subject :bar ["woo"])))
+      (is (received? subject bar))
+      (is (not (received? subject foo)))
+      (is (received? subject bar ["wow"]))
+      (is (not (received? subject bar ["woo"])))
       ))
   )

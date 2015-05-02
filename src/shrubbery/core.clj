@@ -45,16 +45,20 @@
   the method. If given args, filters the list of calls by matching the given args. Matched args may implement the `Matcher`
   protocol; the default implementation for `Object` is `=`."
   ([spy method]
-   (-> spy calls method count))
+   (-> (calls spy) (get method) (count)))
   ([spy method args]
   (->>
-     (-> spy calls method)
+     (get (calls spy) method)
      (filter #(matches? % args))
      (count))))
 
-(defn received?
-  ([spy method] (>= (call-count spy method) 1))
-  ([spy method args] (>= (call-count spy method args) 1)))
+(defmacro received?
+  ([spy method]
+   (let [method-keyword (keyword (str method))]
+     `(>= (call-count ~spy ~method-keyword 1))))
+  ([spy method args]
+   (let [method-keyword (keyword (str method))]
+     `(>= (call-count ~spy ~method-keyword ~args) 1))))
 
 (defn- fn-sigs [proto]
   (-> proto resolve var-get :sigs))

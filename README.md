@@ -110,8 +110,8 @@ As with stubs, once defined, spies cannot currently be altered, though they may 
   (let [subject (spy DbClient fake-db-client)]
     (is (not (received? subject :select)))
     (is (= {:id 1} (find-user subject 42)))
-    (is (received? subject :select))
-    (is (received? subject :select [42]))
+    (is (received? subject select))
+    (is (received? subject select [42]))
     ))
 ```
 
@@ -134,10 +134,10 @@ call `stub` with the given arguments, then wrap that stub in a `spy`.
 
 (deftest test-find-user
   (let [subject (mock DbClient {:select {:id 1}})]
-    (is (not (received? subject :select)))
+    (is (not (received? subject select)))
     (is (= {:id 1} (find-user subject 42)))
-    (is (received? subject :select))
-    (is (received? subject :select [42]))
+    (is (received? subject select))
+    (is (received? subject select [42]))
     ))
 ```
 
@@ -150,11 +150,11 @@ implements some special match cases. Regular expressions are one notable case wh
 ```clojure
 (let [mock-db (mock DbClient)]
   (select mock-db "select * from users")
-  (is (received? mock-db :select ["select * from users"])) ; true
-  (is (received? mock-db :select ["select"]))              ; false
-  (is (received? mock-db :select [#"select"]))             ; true
-  (is (received? mock-db :select [#"select$"]))            ; false
-  (is (received? mock-db :select [anything]))              ; true
+  (is (received? mock-db select ["select * from users"])) ; true
+  (is (received? mock-db select ["select"]))              ; false
+  (is (received? mock-db select [#"select"]))             ; true
+  (is (received? mock-db select [#"select$"]))            ; false
+  (is (received? mock-db select [anything]))              ; true
   )
 ```
 
