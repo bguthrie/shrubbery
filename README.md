@@ -67,8 +67,8 @@ Once defined, stubs cannot currently be altered, though they may be introspected
     (is (= "wow" (find-user subject 42))))
   (let [subject (stub DbClient {:select (fn [_ sql] (str "sql was " sql)})]
     (is (= "sql was select * from users where id = 42"
-           (find-user subject 42))))
-  )
+           (find-user subject 42)))
+    ))
 ```
 
 ### Spies
@@ -108,7 +108,7 @@ As with stubs, once defined, spies cannot currently be altered, though they may 
 
 (deftest test-find-user
   (let [subject (spy DbClient fake-db-client)]
-    (is (not (received? subject :select)))
+    (is (not (received? subject select)))
     (is (= {:id 1} (find-user subject 42)))
     (is (received? subject select))
     (is (received? subject select [42]))
@@ -148,14 +148,15 @@ matching rather than full equality matching. Shrubbery defines a protocol, `Matc
 implements some special match cases. Regular expressions are one notable case where this is useful. For example:
 
 ```clojure
-(let [mock-db (mock DbClient)]
-  (select mock-db "select * from users")
-  (is (received? mock-db select ["select * from users"])) ; true
-  (is (received? mock-db select ["select"]))              ; false
-  (is (received? mock-db select [#"select"]))             ; true
-  (is (received? mock-db select [#"select$"]))            ; false
-  (is (received? mock-db select [anything]))              ; true
-  )
+(deftest test-db-client
+  (let [mock-db (mock DbClient)]
+    (select mock-db "select * from users")
+    (is (received? mock-db select ["select * from users"]))
+    (is (not (received? mock-db select ["select"])))
+    (is (received? mock-db select [#"select"]))
+    (is (not (received? mock-db select [#"select$"])))
+    (is (received? mock-db select [anything]))
+    ))
 ```
 
 Shrubbery's `match?` function performs a standard `=` check by default, but defines several special cases:
