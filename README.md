@@ -29,6 +29,12 @@ Clojure application, or do not otherwise make much use of protocols, you may not
 Additionally, for more background on mock objects, you may find it helpful to read Martin Fowler's classic article on
 the subject, [Mocks Aren't Stubs](http://martinfowler.com/articles/mocksArentStubs.html).
 
+### Caveats
+
+Shrubbery uses protocol reflection to reify those protocols programmatically. Although it doesn't introduce any special 
+syntax for this, preferring simple hashmaps, it's currently not possible to call `reify` with as much flexibility
+as this library requires without resorting to macros, which suffer from composability issues.
+
 ## Releases
 
 Shrubbery is published to [clojars.org](https://clojars.org/com.gearswithingears/shrubbery).
