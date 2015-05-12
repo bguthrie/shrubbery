@@ -39,15 +39,18 @@
   (reify Matcher
     (matches? [_ _] true)))
 
+(defn keyword->symbol [k]
+  (symbol (namespace k) (name k)))
+
 (defn call-count
   "Given a spy, a keyword method name, and an optional vector of args, return the number of times the spy received
   the method. If given args, filters the list of calls by matching the given args. Matched args may implement the `Matcher`
   protocol; the default implementation for `Object` is `=`."
   ([spy method]
-   (-> (calls spy) (get method) (count)))
+   (-> (calls spy) (get (resolve (keyword->symbol method))) (count)))
   ([spy method args]
   (->>
-     (get (calls spy) method)
+     (get (calls spy) (resolve (keyword->symbol method)))
      (filter #(matches? % args))
      (count))))
 
@@ -63,12 +66,13 @@
 (defn proto-fn-with-proxy
   "Given a protocol implementation, a function with side effects, and a protcol function signature, return
   a syntax-quoted protocol method implementation that calls the function, then proxies to the given implementation."
-  [impl f [m sig]]
+  [impl f ns [m sig]]
   (let [f-sym (-> m name symbol)
+        var (-> m name (->> (symbol ns)) resolve)
         args (-> sig :arglists first)]
     `(~f-sym ~args                   ; (foo [this a b]
-       (~f ~m ~@args)                ;   ((fn [method this a b] ...) :foo this a b)
-       (~f-sym ~impl ~@(rest args))) ;   (foo proto-impl a b))
+       (~f ~var ~@args)                ;   ((fn [method this a b] ...) :foo this a b)
+       (~(symbol ns (name f-sym)) ~impl ~@(rest args))) ;   (foo proto-impl a b))
     ))
 
 (defn proto-fn-with-impl
@@ -81,14 +85,17 @@
        (~f ~@args))               ;   ((fn [method this a b] ...) :foo this a b)
     ))
 
+(defn namespace-str [proto]
+  (-> proto resolve meta :ns str))
+
 (defmacro spy
   "Given a protocol and an implementation of that protocol, returns a new implementation of that protocol that counts
   the number of times each method was received. The returned implementation also implements `Spy`, which exposes those
   counts. Each method is proxied to the given impl after capture."
   [proto proxy]
   (let [atom-sym (gensym "counts")
-        recorder `(fn [m# & args#] (swap! ~atom-sym assoc m# (conj (-> ~atom-sym deref m#) (rest args#))))
-        mimpls (map (partial proto-fn-with-proxy proxy recorder) (fn-sigs proto))]
+        recorder `(fn [m# & args#] (swap! ~atom-sym update-in [m#] conj (rest args#)))
+        mimpls (map (partial proto-fn-with-proxy proxy recorder (namespace-str proto)) (fn-sigs proto))]
     `(let [~atom-sym (atom {})]
        (reify
          ~proto
@@ -109,8 +116,10 @@
   ([proto]
   `(stub ~proto {}))
   ([proto impls]
-   (let [sigs (fn-sigs proto)
-         fns (map (fn [[m _]] (wrap-fn impls m)) sigs)
+   (let [impls (into {} (for [[k v] impls] [(resolve (keyword->symbol k)) v]))
+         sigs (fn-sigs proto)
+         fns (map (fn [[m _]] (wrap-fn impls (resolve (symbol (namespace-str proto)
+                                                              (name m))))) sigs)
          mimpls (map proto-fn-with-impl fns sigs)]
      `(reify
         ~proto

@@ -1,7 +1,8 @@
 (ns shrubbery.core-test
   (:require [clojure.test :refer :all]
             [shrubbery.core :refer :all]
-            [shrubbery.clojure.test :refer :all]))
+            [shrubbery.clojure.test :refer :all]
+            [shrubbery.proto-helper :as p]))
 
 (defprotocol AProtocol
   (foo [this])
@@ -159,3 +160,37 @@
       (is (not (received? subject bar ["woo"])))
       ))
   )
+
+(deftest test-namespaced-spy
+  (testing "a simple call counter"
+    (let [subject (spy p/NamespacedProto
+                       (reify p/NamespacedProto
+                         (zzz [_])))]
+      (is (= 0 (call-count subject :p/zzz)))
+      (p/zzz subject)
+      (is (= 1 (call-count subject :p/zzz)))
+      (p/zzz subject)
+      (is (= 2 (call-count subject :p/zzz)))
+      )))
+
+(deftest test-namespaced-mock
+  (testing "with no provided implementations"
+    (let [subject (mock p/NamespacedProto)]
+      (is (nil? (p/zzz subject)))
+      (is (received? subject p/zzz))
+      ))
+
+  (testing "with an empty implementation"
+    (let [subject (mock p/NamespacedProto {})]
+      (is (nil? (p/zzz subject)))
+      (is (received? subject p/zzz))
+      ))
+
+  (testing "with a basic implementation"
+    (let [subject (mock p/NamespacedProto {:p/zzz-arged (fn [this that] that)})]
+      (is (= "wow" (p/zzz-arged subject "wow")))
+      (is (received? subject p/zzz-arged))
+      (is (not (received? subject p/zzz)))
+      (is (received? subject p/zzz-arged ["wow"]))
+      (is (not (received? subject p/zzz-arged ["woo"])))
+      )))
