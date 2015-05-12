@@ -65,11 +65,10 @@
   a syntax-quoted protocol method implementation that calls the function, then proxies to the given implementation."
   [impl f ns [m sig]]
   (let [f-sym (-> m name symbol)
-        var (-> m name (->> (symbol ns)) resolve)
         args (-> sig :arglists first)]
     `(~f-sym ~args                                          ; (foo [this a b]
-       (~f (resolve (symbol ~ns (name ~m))) ~@args)         ;   ((fn [method this a b] ...) :foo this a b)
-       (~(symbol ns (name f-sym)) ~impl ~@(rest args)))                        ;   (foo proto-impl a b))
+       ~(apply f (resolve (symbol ns (name m))) args)         ;   ((fn [method this a b] ...) :foo this a b)
+       (~(symbol ns (name f-sym)) ~impl ~@(rest args)))     ;   (foo proto-impl a b))
     ))
 
 (defn proto-fn-with-impl
@@ -91,7 +90,7 @@
   counts. Each method is proxied to the given impl after capture."
   [proto proxy]
   (let [atom-sym (gensym "counts")
-        recorder `(fn [m# & args#] (swap! ~atom-sym update-in [m#] conj (rest args#)))
+        recorder (fn [m & args] `(swap! ~atom-sym update-in [~m] conj (list ~@(rest args))))
         mimpls (map (partial proto-fn-with-proxy proxy recorder (namespace-str proto)) (fn-sigs proto))]
     `(let [~atom-sym (atom {})]
        (reify
@@ -113,8 +112,7 @@
   ([proto]
    `(stub ~proto {}))
   ([proto impls]
-   (let [impls (into {} (for [[k v] impls] [(resolve (symbol (namespace k)
-                                                             (name k))) v]))
+   (let [impls (into {} (for [[k v] impls] [(resolve k) v]))
          sigs (fn-sigs proto)
          fns (map (fn [[m _]] (wrap-fn impls (resolve (symbol (namespace-str proto)
                                                               (name m))))) sigs)
