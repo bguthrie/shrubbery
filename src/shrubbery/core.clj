@@ -53,9 +53,9 @@
 
 (defmacro received?
   ([spy method]
-   `(>= (call-count ~spy ~(->> method resolve)) 1))
+   `(>= (call-count ~spy ~method) 1))
   ([spy method args]
-   `(>= (call-count ~spy ~(->> method resolve) ~args) 1)))
+   `(>= (call-count ~spy ~method ~args) 1)))
 
 (defn- fn-sigs [proto]
   (-> proto resolve var-get :sigs))
@@ -67,7 +67,7 @@
   (let [f-sym (-> m name symbol)
         args (-> sig :arglists first)]
     `(~f-sym ~args                                          ; (foo [this a b]
-       ~(apply f (resolve (symbol ns (name m))) args)         ;   ((fn [method this a b] ...) :foo this a b)
+       ~(apply f (symbol ns (name m)) args)         ;   ((fn [method this a b] ...) :foo this a b)
        (~(symbol ns (name f-sym)) ~impl ~@(rest args)))     ;   (foo proto-impl a b))
     ))
 

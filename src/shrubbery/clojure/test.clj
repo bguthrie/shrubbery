@@ -5,7 +5,7 @@
 
 (defmethod assert-expr 'received? [msg form]
   `(let [spy# ~(nth form 1)
-         method# ~(-> (nth form 2) resolve)
+         method# ~(-> (nth form 2))
          args# ~(some-> form (nth 3 nil))]
      (let [count# (apply call-count spy# (remove nil? [method# args#]))
            result# (= count# 1)]
