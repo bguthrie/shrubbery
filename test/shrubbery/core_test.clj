@@ -1,7 +1,8 @@
 (ns shrubbery.core-test
   (:require [clojure.test :refer :all]
             [shrubbery.core :refer :all]
-            [shrubbery.clojure.test :refer :all]))
+            [shrubbery.clojure.test :refer :all]
+            [shrubbery.proto-helper :as p]))
 
 (defprotocol AProtocol
   (foo [this])
@@ -17,71 +18,71 @@
 (deftest test-spy
   (testing "a simple call counter"
     (let [subject (spy AProtocol proto)]
-      (is (= 0 (call-count subject :foo)))
+      (is (= 0 (call-count subject #'foo)))
       (is (= :hello-foo (foo subject)))
-      (is (= 1 (call-count subject :foo)))
+      (is (= 1 (call-count subject #'foo)))
       (is (= :hello-foo (foo subject)))
-      (is (= 2 (call-count subject :foo)))
+      (is (= 2 (call-count subject #'foo)))
       ))
 
   (testing "a call counter with simple argument equality"
     (let [subject (spy AProtocol proto)]
-      (is (= 0 (call-count subject :bar)))
+      (is (= 0 (call-count subject #'bar)))
 
       (bar subject "yes")
-      (is (= 0 (call-count subject :bar ["no"])))
-      (is (= 1 (call-count subject :bar ["yes"])))
+      (is (= 0 (call-count subject #'bar ["no"])))
+      (is (= 1 (call-count subject #'bar ["yes"])))
 
       (bar subject :symbol)
-      (is (= 1 (call-count subject :bar [:symbol])))
+      (is (= 1 (call-count subject #'bar [:symbol])))
       ))
 
   (testing "a call counter with regexp matching"
     (let [subject (spy AProtocol proto)]
-      (is (= 0 (call-count subject :bar)))
+      (is (= 0 (call-count subject #'bar)))
 
       (bar subject "yes")
-      (is (= 0 (call-count subject :bar ["no"])))
-      (is (= 0 (call-count subject :bar [#"no"])))
-      (is (= 1 (call-count subject :bar [#"yes"])))
-      (is (= 1 (call-count subject :bar [#"y.."])))
+      (is (= 0 (call-count subject #'bar ["no"])))
+      (is (= 0 (call-count subject #'bar [#"no"])))
+      (is (= 1 (call-count subject #'bar [#"yes"])))
+      (is (= 1 (call-count subject #'bar [#"y.."])))
 
       (bar subject "yess")
-      (is (= 1 (call-count subject :bar ["yes"])))
-      (is (= 1 (call-count subject :bar [#"yess"])))
-      (is (= 2 (call-count subject :bar [#"yes"])))
-      (is (= 2 (call-count subject :bar [#"y*"])))
+      (is (= 1 (call-count subject #'bar ["yes"])))
+      (is (= 1 (call-count subject #'bar [#"yess"])))
+      (is (= 2 (call-count subject #'bar [#"yes"])))
+      (is (= 2 (call-count subject #'bar [#"y*"])))
       ))
 
   (testing "a call counter that matches anything"
     (let [subject (spy AProtocol proto)]
-      (is (= 0 (call-count subject :bar)))
+      (is (= 0 (call-count subject #'bar)))
 
       (bar subject "wow such matching")
-      (is (= 1 (call-count subject :bar)))
-      (is (= 1 (call-count subject :bar [anything])))
+      (is (= 1 (call-count subject #'bar)))
+      (is (= 1 (call-count subject #'bar [anything])))
       ))
 
   (testing "a call counter that matches multiple arguments"
     (let [subject (spy AProtocol proto)]
-      (is (= 0 (call-count subject :baz)))
+      (is (= 0 (call-count subject #'baz)))
 
       (baz subject "hello" "world")
-      (is (= 1 (call-count subject :baz ["hello" "world"])))
-      (is (= 0 (call-count subject :baz ["hello" "w"])))
-      (is (= 1 (call-count subject :baz ["hello" anything])))
+      (is (= 1 (call-count subject #'baz ["hello" "world"])))
+      (is (= 0 (call-count subject #'baz ["hello" "w"])))
+      (is (= 1 (call-count subject #'baz ["hello" anything])))
       ))
 
   (testing "a call counter with arbitrary matching"
     (let [subject (spy AProtocol proto)]
-      (is (= 0 (call-count subject :baz)))
+      (is (= 0 (call-count subject #'baz)))
 
       (bar subject 2)
-      (is (= 1 (call-count subject :bar [#(> % 1)])))
-      (is (= 0 (call-count subject :bar [#(> % 2)])))
+      (is (= 1 (call-count subject #'bar [#(> % 1)])))
+      (is (= 0 (call-count subject #'bar [#(> % 2)])))
       (bar subject 1)
-      (is (= 2 (call-count subject :bar [#(> % 0)])))
-      (is (= 1 (call-count subject :bar [#(> % 1)])))
+      (is (= 2 (call-count subject #'bar [#(> % 0)])))
+      (is (= 1 (call-count subject #'bar [#(> % 1)])))
       ))
   )
 
@@ -143,7 +144,6 @@
       (is (nil? (foo subject)))
       (is (received? subject foo))
       ))
-
   (testing "with an empty implementation"
     (let [subject (mock AProtocol {})]
       (is (nil? (foo subject)))
@@ -157,5 +157,41 @@
       (is (not (received? subject foo)))
       (is (received? subject bar ["wow"]))
       (is (not (received? subject bar ["woo"])))
+      ))
+  )
+
+(deftest test-namespaced-spy
+  (testing "a simple call counter"
+    (let [subject (spy p/NamespacedProto
+                       (reify p/NamespacedProto
+                         (zzz [_])))]
+      (is (= 0 (call-count subject #'p/zzz)))
+      (p/zzz subject)
+      (is (= 1 (call-count subject #'p/zzz)))
+      (p/zzz subject)
+      (is (= 2 (call-count subject #'p/zzz)))
+      ))
+  )
+
+(deftest test-namespaced-mock
+  (testing "with no provided implementations"
+    (let [subject (mock p/NamespacedProto)]
+      (is (nil? (p/zzz subject)))
+      (is (received? subject p/zzz))
+      ))
+
+  (testing "with an empty implementation"
+    (let [subject (mock p/NamespacedProto {})]
+      (is (nil? (p/zzz subject)))
+      (is (received? subject p/zzz))
+      ))
+
+  (testing "with a basic implementation"
+    (let [subject (mock p/NamespacedProto {:p/zzz-arged (fn [this that] that)})]
+      (is (= "wow" (p/zzz-arged subject "wow")))
+      (is (received? subject p/zzz-arged))
+      (is (not (received? subject p/zzz)))
+      (is (received? subject p/zzz-arged ["wow"]))
+      (is (not (received? subject p/zzz-arged ["woo"])))
       ))
   )
