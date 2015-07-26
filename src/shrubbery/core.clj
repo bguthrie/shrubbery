@@ -71,16 +71,6 @@
        (~f-sym ~impl ~@(rest args))) ;   (foo proto-impl a b))
     ))
 
-(defn proto-fn-with-impl
-  "Given a function and a protocol function signature, return a syntax-quoted protocol method implementation that
-  calls the function."
-  [f [m sig]]
-  (let [f-sym (-> m name symbol)
-        args (-> sig :arglists first)]
-    `(~f-sym ~args                   ; (foo [this a b]
-       (~f ~@args))               ;   ((fn [method this a b] ...) :foo this a b)
-    ))
-
 (defmacro spy
   "Given a protocol and an implementation of that protocol, returns a new implementation of that protocol that counts
   the number of times each method was received. The returned implementation also implements `Spy`, which exposes those
@@ -98,26 +88,42 @@
          (proxied [t#] ~proxy)
          ))))
 
-(defn- wrap-fn [impls m]
-  (if-let [o (impls m)]
-    `(fn [& args#] (if (fn? ~o) (apply ~o args#) ~o))
-    `(fn [& args#] nil)))
+(defprotocol Stubbable
+  (reify-syntax-for-stub [thing arglist]))
 
-(defmacro stub
-  "Given a protocol and a hashmap of function implementations, returns a new implementation of that protocol with those
-  implementations. If no function implementation is given for a method, that method will return `nil` when called."
-  ([proto]
-  `(stub ~proto {}))
+(extend-protocol Stubbable
+  clojure.lang.IFn
+  (reify-syntax-for-stub [thing arglist]
+    (let [fn-sym (gensym)]
+      (intern *ns* fn-sym thing)
+      `(~fn-sym ~@arglist)))
+  clojure.lang.Symbol
+  (reify-syntax-for-stub [thing arglist]
+    `'~thing)
+  java.lang.Object
+  (reify-syntax-for-stub [thing arglist] thing)
+  )
+
+;; AProtocol{foo,bar,baz}, {:foo 5, :bar nil, :baz nil} -> '((foo [_] 5) (bar [_ _] nil) (baz [_ _ _] nil))
+(defn- impl-stub-syntax->impl-reify-syntax [proto impl-hash]
+  (map
+    (fn [[proto-fn-name proto-fn-sig]]
+      (let [arglist (-> proto-fn-sig :arglists first)
+            gensymmed-arglist (vec (map (comp gensym symbol) arglist))
+            stub-impl-or-nil (get impl-hash proto-fn-name)
+            stub-value (when-not (nil? stub-impl-or-nil) (reify-syntax-for-stub stub-impl-or-nil gensymmed-arglist))]
+        (list (-> proto-fn-name name symbol) gensymmed-arglist stub-value)))
+    (-> proto :sigs)))
+
+(defn stub-syntax->reify-syntax [proto impls]
+  (cons (:on proto) (impl-stub-syntax->impl-reify-syntax proto impls)))
+
+(defn stub
+  ([proto] (stub proto {}))
   ([proto impls]
-   (let [sigs (fn-sigs proto)
-         fns (map (fn [[m _]] (wrap-fn impls m)) sigs)
-         mimpls (map proto-fn-with-impl fns sigs)]
-     `(reify
-        ~proto
-        ~@mimpls
-        Stub
-        (protocol [t#] ~proto))
-     )))
+    (eval
+      `(reify
+         ~@(stub-syntax->reify-syntax proto impls)))))
 
 (defmacro mock
   "Given a protocol and a hashmap of function implementations, returns a new implementation of that protocol with those
