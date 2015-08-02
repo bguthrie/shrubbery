@@ -16,7 +16,7 @@
 
 (deftest test-spy
   (testing "a simple call counter"
-    (let [subject (spy AProtocol proto)]
+    (let [subject (spy proto AProtocol)]
       (is (= 0 (call-count subject :foo)))
       (is (= :hello-foo (foo subject)))
       (is (= 1 (call-count subject :foo)))
@@ -87,7 +87,7 @@
 
 (deftest test-received?
   (testing "a simple received? call"
-    (let [subject (spy AProtocol proto)]
+    (let [subject (spy proto AProtocol)]
       (foo subject)
       (is (received? subject foo))
       (is (not (received? subject bar)))
@@ -135,7 +135,14 @@
       (is (= "some object" (bar subject :hello)))
       (is (= "some object" (baz subject :hello :world)))
       ))
-  )
+
+  (testing "with a let-binding that resolves to the entirety of the stub"
+    (let [stuff {:foo 1 :bar "two" :baz 'three}
+          subject (stub AProtocol stuff)]
+      (is (= 1 (foo subject)))
+      (is (= "two" (bar subject :hello)))
+      (is (= 'three (baz subject :hello :world)))
+      )))
 
 (deftest test-mock
   (testing "with no provided implementations"
