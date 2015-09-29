@@ -64,14 +64,16 @@
 (defn- proto-fn-with-proxy
   "Given a protocol implementation, a function with side effects, and a protcol function signature, return
   a syntax-quoted protocol method implementation that calls the function, then proxies to the given implementation."
-  [impl f [m sig]]
-  (let [f-sym (-> m name symbol)
-        args (-> sig :arglists first)]
-    `(~f-sym ~args                   ; (foo [this a b]
+  [impl proto f [m sig]]
+  (let [args (-> sig :arglists first)
+        f-sym (-> sig :name)
+        proto-ns (-> proto resolve meta :ns)
+        f-ref (symbol (str proto-ns) (str f-sym))]
+    `(~f-ref ~args                   ; (foo [this a b]
        (~f ~m ~@args)                ;   ((fn [method this a b] ...) :foo this a b)
        ;; the impl is getting rendered here rather than called
        ;; don't we have this available?
-       (~f-sym ~impl ~@(rest args))) ;   (foo proto-impl a b))
+       (~f-ref ~impl ~@(rest args))) ;   (foo proto-impl a b))
     ))
 
 (defmacro spy
@@ -81,7 +83,7 @@
   [proxy proto]
   (let [atom-sym (gensym "counts")
         recorder `(fn [m# & args#] (swap! ~atom-sym assoc m# (conj (-> ~atom-sym deref m#) (rest args#))))
-        mimpls (map (partial proto-fn-with-proxy proxy recorder) (fn-sigs proto))]
+        mimpls (map (partial proto-fn-with-proxy proxy proto recorder) (fn-sigs proto))]
     `(let [~atom-sym (atom {})]
        (reify
          ~proto
