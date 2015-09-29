@@ -52,11 +52,11 @@
      (filter #(matches? args %))
      (count))))
 
-(defmacro received?
+(defn received?
   ([spy method]
-   `(>= (call-count ~spy ~(-> method str keyword)) 1))
+   (>= (call-count spy (-> method str keyword)) 1))
   ([spy method args]
-   `(>= (call-count ~spy ~(-> method str keyword) ~args) 1)))
+   (>= (call-count spy (-> method str keyword) args) 1)))
 
 (defn- fn-sigs [proto]
   (-> proto resolve var-get :sigs))
