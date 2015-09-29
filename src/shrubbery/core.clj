@@ -58,40 +58,44 @@
   ([spy method args]
    (>= (call-count spy (-> method str keyword) args) 1)))
 
-(defn- fn-sigs [proto]
-  (-> proto resolve var-get :sigs))
+(declare ^:dynamic *proxy*)
 
 (defn- proto-fn-with-proxy
   "Given a protocol implementation, a function with side effects, and a protcol function signature, return
   a syntax-quoted protocol method implementation that calls the function, then proxies to the given implementation."
-  [impl proto f [m sig]]
+  [proxy-sym proto f [m sig]]
   (let [args (-> sig :arglists first)
         f-sym (-> sig :name)
-        proto-ns (-> proto resolve meta :ns)
+        proto-ns (-> proto :var meta :ns)
         f-ref (symbol (str proto-ns) (str f-sym))]
     `(~f-ref ~args                   ; (foo [this a b]
        (~f ~m ~@args)                ;   ((fn [method this a b] ...) :foo this a b)
        ;; the impl is getting rendered here rather than called
        ;; don't we have this available?
-       (~f-ref ~impl ~@(rest args))) ;   (foo proto-impl a b))
+       (~f-ref ~proxy-sym ~@(rest args))) ;   (foo proto-impl a b))
     ))
 
-(defmacro spy
+(defn spy
   "Given a protocol and an implementation of that protocol, returns a new implementation of that protocol that counts
   the number of times each method was received. The returned implementation also implements `Spy`, which exposes those
   counts. Each method is proxied to the given impl after capture."
-  [proxy proto]
+  [aproxy proto]
   (let [atom-sym (gensym "counts")
+        proxy-sym (gensym "proxy")
         recorder `(fn [m# & args#] (swap! ~atom-sym assoc m# (conj (-> ~atom-sym deref m#) (rest args#))))
-        mimpls (map (partial proto-fn-with-proxy proxy proto recorder) (fn-sigs proto))]
-    `(let [~atom-sym (atom {})]
-       (reify
-         ~proto
-         ~@mimpls
-         Spy
-         (calls [t#] (deref ~atom-sym))
-         (proxied [t#] ~proxy)
-         ))))
+        mimpls (map (partial proto-fn-with-proxy proxy-sym proto recorder) (-> proto :sigs))]
+
+    (binding [*proxy* aproxy]
+      (eval
+        `(let [~atom-sym (atom {})
+               ~proxy-sym *proxy*]
+          (reify
+            ~(:on proto)
+            ~@mimpls
+            Spy
+            (calls [t#] (deref ~atom-sym))
+            (proxied [t#] ~proxy-sym)
+            ))))))
 
 (defprotocol Stubbable
   (reify-syntax-for-stub [thing arglist]))
@@ -128,17 +132,20 @@
   (cons (:on proto) (impl-stub-syntax->impl-reify-syntax proto impls)))
 
 (defn stub
+  "Given a protocol and a hashmap of function implementations, returns a new implementation of that protocol with those
+  implementation. Functions as values are not supported, as they would require side effects to define; for more complex
+  stubs, prefer `reify`."
   ([proto] (stub proto {}))
   ([proto impls]
     (eval
       `(reify
          ~@(stub-syntax->reify-syntax proto impls)))))
 
-(defmacro mock
+(defn mock
   "Given a protocol and a hashmap of function implementations, returns a new implementation of that protocol with those
   implementations. The returned implementation is also a spy, allowing you to inspect and assert against its calls.
   See `spy` and `stub`."
   ([proto]
-   `(mock ~proto {}))
+   (mock proto {}))
   ([proto impls]
-   `(spy (stub ~proto ~impls) ~proto)))
+   (spy (stub proto impls) proto)))
