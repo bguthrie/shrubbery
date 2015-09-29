@@ -24,11 +24,19 @@
       (is (= 2 (call-count subject :foo)))
       ))
 
+  (testing "correct proxy behavior"
+    (let [subject (spy proto AProtocol)]
+      (is (= :hello-foo (foo subject)))
+      (is (= :hello-bar (bar subject nil)))
+      (is (= :hello-baz (baz subject nil nil)))
+      ))
+
   (testing "a call counter with simple argument equality"
-    (let [subject (spy AProtocol proto)]
+    (let [subject (spy proto AProtocol)]
       (is (= 0 (call-count subject :bar)))
 
       (bar subject "yes")
+      (println (calls subject))
       (is (= 0 (call-count subject :bar ["no"])))
       (is (= 1 (call-count subject :bar ["yes"])))
 
@@ -37,7 +45,7 @@
       ))
 
   (testing "a call counter with regexp matching"
-    (let [subject (spy AProtocol proto)]
+    (let [subject (spy proto AProtocol)]
       (is (= 0 (call-count subject :bar)))
 
       (bar subject "yes")
@@ -54,7 +62,7 @@
       ))
 
   (testing "a call counter that matches anything"
-    (let [subject (spy AProtocol proto)]
+    (let [subject (spy proto AProtocol)]
       (is (= 0 (call-count subject :bar)))
 
       (bar subject "wow such matching")
@@ -63,7 +71,7 @@
       ))
 
   (testing "a call counter that matches multiple arguments"
-    (let [subject (spy AProtocol proto)]
+    (let [subject (spy proto AProtocol)]
       (is (= 0 (call-count subject :baz)))
 
       (baz subject "hello" "world")
@@ -73,7 +81,7 @@
       ))
 
   (testing "a call counter with arbitrary matching"
-    (let [subject (spy AProtocol proto)]
+    (let [subject (spy proto AProtocol)]
       (is (= 0 (call-count subject :baz)))
 
       (bar subject 2)
@@ -143,7 +151,8 @@
       (is (= 1 (foo subject)))
       (is (= "two" (bar subject :hello)))
       (is (= 'three (baz subject :hello :world)))
-      )))
+      ))
+ )
 
 (deftest test-mock
   (testing "with no provided implementations"

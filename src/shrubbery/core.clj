@@ -1,4 +1,5 @@
-(ns shrubbery.core)
+(ns shrubbery.core
+  (:import (clojure.lang Var)))
 
 (defprotocol Spy
   "A protocol for objects that expose call counts. `calls` should return a map of function names to lists of received
@@ -57,6 +58,7 @@
   ([spy method args]
    `(>= (call-count ~spy ~(-> method str keyword) ~args) 1)))
 
+
 (defn proto-fn-with-proxy
   "Given a protocol implementation, a function with side effects, and a protcol function signature, return
   a syntax-quoted protocol method implementation that calls the function, then proxies to the given implementation."
@@ -87,26 +89,58 @@
 ;         (proxied [t#] ~proxy)
 ;         ))))
 
-(defn record-and-proxy-fn-call [counts orig-impl fn-name args]
-  (swap! counts assoc fn-name (conj (-> counts deref fn-name) args))
-  (apply )
-  )
 
-(defn spy [proxy & protos]
+;(defn spy [proxy & protos]
+;  (let [atom-sym (gensym "counts")
+;        proto (first protos)
+;        recorder `(fn [m# & args#] (swap! ~atom-sym assoc m# (conj (-> ~atom-sym deref m#) (rest args#))))
+;        mimpls (map (fn [[proto-fn-name proto-fn-sig]]
+;                      (let [f-sym (-> proto-fn-name name symbol)
+;                            args (-> proto-fn-sig :arglists first)]
+;                        `(~f-sym ~args
+;                          (swap! ~atom-sym assoc ~proto-fn-name (conj (-> ~atom-sym deref ~proto-fn-name) [~@args]))
+;                          (~f-sym proxy ~@(rest args)))))
+;                    (proto :sigs))
+;        everything       `(let [~atom-sym (atom {})]
+;                            (reify
+;                              ~(proto :on)
+;                              ~@mimpls
+;                              Spy
+;                              (calls [t#] (deref ~atom-sym))
+;                              (proxied [t#] ~(proto :on))
+;                              ))]
+;    (println everything)
+;    (eval everything)
+;    ))
+
+(def ^:dynamic *proxy* nil)
+
+(defn spy [proxy proto]
   (let [atom-sym (gensym "counts")
-        proto (first protos)
-        recorder `(fn [m# & args#] (swap! ~atom-sym assoc m# (conj (-> ~atom-sym deref m#) (rest args#))))
-        mimpls (map (partial proto-fn-with-proxy proxy recorder) (proto :sigs))
-        everything       `(let [~atom-sym (atom {})]
-                            (reify
-                              ~(proto :on)
-                              ~@mimpls
-                              Spy
-                              (calls [t#] (deref ~atom-sym))
-                              (proxied [t#] ~(proto :on))
-                              ))]
-    (println everything)
-    (eval everything)))
+        mimpls (map (fn [[proto-fn-name proto-fn-sig]]
+                      (let [f-sym (-> proto-fn-sig :name)
+                            args (-> proto-fn-sig :arglists first)
+                            proto-ns (-> proto :var meta :ns)
+                            f-ref (symbol (str proto-ns) (str f-sym))
+                            proxy-sym '*proxy*]
+                        `(~f-sym ~args
+                           (swap! ~atom-sym assoc ~proto-fn-name (conj (-> ~atom-sym deref ~proto-fn-name) [~@(rest args)]))
+                           (~f-ref *proxy* ~@(rest args)))
+                        ))
+                    (proto :sigs))]
+
+    (binding [*proxy* proxy]
+      (eval
+       `(let [~atom-sym (atom {})]
+          (reify
+            ~(proto :on)
+            ~@mimpls
+            Spy
+            (calls [t#] (deref ~atom-sym))
+            (proxied [t#] ~(proto :on))))))
+
+    )
+  )
 
 (defprotocol Stubbable
   (reify-syntax-for-stub [thing arglist]))
@@ -115,6 +149,7 @@
   ; I'm leaving this here for historical reasons, but am making an explicit choice
   ; not to support this use-case. If you want to pass a function, just reify the
   ; protocol the old-fashioned way. I won't intern vars on the caller's behalf.
+  ;
   ;clojure.lang.IFn
   ;(reify-syntax-for-stub [thing arglist]
   ;  (let [fn-sym (gensym)]
@@ -131,10 +166,10 @@
 (defn- impl-stub-syntax->impl-reify-syntax [proto impl-hash]
   (map
     (fn [[proto-fn-name proto-fn-sig]]
-      (let [arglist (-> proto-fn-sig :arglists first)
+      (let [arglist           (-> proto-fn-sig :arglists first)
             gensymmed-arglist (vec (map (comp gensym symbol) arglist))
-            stub-impl-or-nil (get impl-hash proto-fn-name)
-            stub-value (when-not (nil? stub-impl-or-nil) (reify-syntax-for-stub stub-impl-or-nil gensymmed-arglist))]
+            stub-impl-or-nil  (get impl-hash proto-fn-name)
+            stub-value        (when-not (nil? stub-impl-or-nil) (reify-syntax-for-stub stub-impl-or-nil gensymmed-arglist))]
         (list (-> proto-fn-name name symbol) gensymmed-arglist stub-value)))
     (-> proto :sigs)))
 
