@@ -58,6 +58,30 @@
   ([spy method args]
    (>= (call-count spy (-> method str keyword) args) 1)))
 
+(defn- namespace-from-parts [package-parts]
+  (->> package-parts
+       (map #(clojure.string/replace % #"_" "-"))
+       (clojure.string/join ".")))
+
+(defn- namespace-qualified-symbol [maybe-proto]
+  (let [parts (-> (.getName maybe-proto) (clojure.string/split #"\."))
+        ns-name (namespace-from-parts (butlast parts))
+        maybe-ns (find-ns (symbol ns-name))
+        proto-name (last parts)
+        maybe-var (symbol ns-name proto-name)]
+    (when maybe-ns
+      (find-var maybe-var))))
+
+(defn protocols [o]
+  "Given an object, attempt to return the set of all protocols it reifies. Warning: this is buggy, and may choke
+  on nonstandard package and namespace choices. Pull requests and bug reports welcome."
+  (->> (supers (class o))
+       (map namespace-qualified-symbol)
+       (remove nil?)
+       (map var-get)
+       (set)
+       ))
+
 (declare ^:dynamic *proxy*)
 
 (defn- proto-fn-with-proxy
@@ -68,11 +92,9 @@
         f-sym (-> sig :name)
         proto-ns (-> proto :var meta :ns)
         f-ref (symbol (str proto-ns) (str f-sym))]
-    `(~f-ref ~args                   ; (foo [this a b]
-       (~f ~m ~@args)                ;   ((fn [method this a b] ...) :foo this a b)
-       ;; the impl is getting rendered here rather than called
-       ;; don't we have this available?
-       (~f-ref ~proxy-sym ~@(rest args))) ;   (foo proto-impl a b))
+    `(~f-ref ~args                        ; (some.ns/foo [this a b]
+       (~f ~m ~@args)                     ;   ((fn [method this a b] ...) :foo this a b)
+       (~f-ref ~proxy-sym ~@(rest args))) ;   (some.ns/foo proto-impl a b))
     ))
 
 (defn spy

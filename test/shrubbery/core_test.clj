@@ -175,3 +175,29 @@
       (is (not (received? subject bar ["woo"])))
       ))
   )
+
+(defrecord RecProtocol []
+  AProtocol)
+
+(deftest test-protocols
+  (testing "with no known protocols"
+    (let [subject (Object.)]
+      (is (= #{} (protocols subject)))))
+
+  (testing "with a single protocol with no hyphens"
+    (let [subject (reify shrubbery.core/Spy)]
+      (is (= #{shrubbery.core/Spy} (protocols subject)))))
+
+  (testing "with a single simple protocol with a hyphen"
+    (let [subject (reify AProtocol)]
+      (is (= #{shrubbery.core-test/AProtocol} (protocols subject)))))
+
+  (testing "with multiple protocols from different namespaces"
+    (let [subject (reify AProtocol shrubbery.core/Spy shrubbery.core/Stub)]
+      (is (= #{AProtocol shrubbery.core/Spy shrubbery.core/Stub} (protocols subject)))
+      ))
+
+  (testing "with a record that implements a protocol"
+    (let [subject (->RecProtocol)]
+      (is (= #{AProtocol} (protocols subject)))))
+  )
