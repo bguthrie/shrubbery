@@ -36,7 +36,6 @@
       (is (= 0 (call-count subject :bar)))
 
       (bar subject "yes")
-      (println (calls subject))
       (is (= 0 (call-count subject :bar ["no"])))
       (is (= 1 (call-count subject :bar ["yes"])))
 
@@ -168,8 +167,8 @@
       ))
 
   (testing "with a basic implementation"
-    (let [subject (mock AProtocol {:bar (fn [this that] that)})]
-      (is (= "wow" (bar subject "wow")))
+    (let [subject (mock AProtocol {:bar 5})]
+      (is (= 5 (bar subject "wow")))
       (is (received? subject bar))
       (is (not (received? subject foo)))
       (is (received? subject bar ["wow"]))

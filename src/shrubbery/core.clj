@@ -58,8 +58,10 @@
   ([spy method args]
    `(>= (call-count ~spy ~(-> method str keyword) ~args) 1)))
 
+(defn- fn-sigs [proto]
+  (-> proto resolve var-get :sigs))
 
-(defn proto-fn-with-proxy
+(defn- proto-fn-with-proxy
   "Given a protocol implementation, a function with side effects, and a protcol function signature, return
   a syntax-quoted protocol method implementation that calls the function, then proxies to the given implementation."
   [impl f [m sig]]
@@ -72,75 +74,22 @@
        (~f-sym ~impl ~@(rest args))) ;   (foo proto-impl a b))
     ))
 
-;(defmacro spy
-;  "Given a protocol and an implementation of that protocol, returns a new implementation of that protocol that counts
-;  the number of times each method was received. The returned implementation also implements `Spy`, which exposes those
-;  counts. Each method is proxied to the given impl after capture."
-;  [proto proxy]
-;  (let [atom-sym (gensym "counts")
-;        recorder `(fn [m# & args#] (swap! ~atom-sym assoc m# (conj (-> ~atom-sym deref m#) (rest args#))))
-;        mimpls (map (partial proto-fn-with-proxy proxy recorder) (fn-sigs proto))]
-;    `(let [~atom-sym (atom {})]
-;       (reify
-;         ~proto
-;         ~@mimpls
-;         Spy
-;         (calls [t#] (deref ~atom-sym))
-;         (proxied [t#] ~proxy)
-;         ))))
-
-
-;(defn spy [proxy & protos]
-;  (let [atom-sym (gensym "counts")
-;        proto (first protos)
-;        recorder `(fn [m# & args#] (swap! ~atom-sym assoc m# (conj (-> ~atom-sym deref m#) (rest args#))))
-;        mimpls (map (fn [[proto-fn-name proto-fn-sig]]
-;                      (let [f-sym (-> proto-fn-name name symbol)
-;                            args (-> proto-fn-sig :arglists first)]
-;                        `(~f-sym ~args
-;                          (swap! ~atom-sym assoc ~proto-fn-name (conj (-> ~atom-sym deref ~proto-fn-name) [~@args]))
-;                          (~f-sym proxy ~@(rest args)))))
-;                    (proto :sigs))
-;        everything       `(let [~atom-sym (atom {})]
-;                            (reify
-;                              ~(proto :on)
-;                              ~@mimpls
-;                              Spy
-;                              (calls [t#] (deref ~atom-sym))
-;                              (proxied [t#] ~(proto :on))
-;                              ))]
-;    (println everything)
-;    (eval everything)
-;    ))
-
-(def ^:dynamic *proxy* nil)
-
-(defn spy [proxy proto]
+(defmacro spy
+  "Given a protocol and an implementation of that protocol, returns a new implementation of that protocol that counts
+  the number of times each method was received. The returned implementation also implements `Spy`, which exposes those
+  counts. Each method is proxied to the given impl after capture."
+  [proxy proto]
   (let [atom-sym (gensym "counts")
-        mimpls (map (fn [[proto-fn-name proto-fn-sig]]
-                      (let [f-sym (-> proto-fn-sig :name)
-                            args (-> proto-fn-sig :arglists first)
-                            proto-ns (-> proto :var meta :ns)
-                            f-ref (symbol (str proto-ns) (str f-sym))
-                            proxy-sym '*proxy*]
-                        `(~f-sym ~args
-                           (swap! ~atom-sym assoc ~proto-fn-name (conj (-> ~atom-sym deref ~proto-fn-name) [~@(rest args)]))
-                           (~f-ref *proxy* ~@(rest args)))
-                        ))
-                    (proto :sigs))]
-
-    (binding [*proxy* proxy]
-      (eval
-       `(let [~atom-sym (atom {})]
-          (reify
-            ~(proto :on)
-            ~@mimpls
-            Spy
-            (calls [t#] (deref ~atom-sym))
-            (proxied [t#] ~(proto :on))))))
-
-    )
-  )
+        recorder `(fn [m# & args#] (swap! ~atom-sym assoc m# (conj (-> ~atom-sym deref m#) (rest args#))))
+        mimpls (map (partial proto-fn-with-proxy proxy recorder) (fn-sigs proto))]
+    `(let [~atom-sym (atom {})]
+       (reify
+         ~proto
+         ~@mimpls
+         Spy
+         (calls [t#] (deref ~atom-sym))
+         (proxied [t#] ~proxy)
+         ))))
 
 (defprotocol Stubbable
   (reify-syntax-for-stub [thing arglist]))
@@ -190,4 +139,4 @@
   ([proto]
    `(mock ~proto {}))
   ([proto impls]
-   `(spy ~proto (stub ~proto ~impls))))
+   `(spy (stub ~proto ~impls) ~proto)))
