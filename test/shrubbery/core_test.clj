@@ -16,6 +16,10 @@
     (baz [_ _ _] :hello-baz)))
 
 (deftest test-spy
+  (testing "with illegal arguments"
+    (is (thrown? IllegalArgumentException (spy (Object.))))
+    (is (thrown? IllegalArgumentException (spy proto []))))
+
   (testing "a simple call counter"
     (let [subject (spy proto)]
       (is (= 0 (call-count subject :foo)))
@@ -141,6 +145,11 @@
       )))
 
 (deftest test-stub
+  (testing "with illegal arguments"
+    (is (thrown? IllegalArgumentException (stub)))
+    (is (thrown? IllegalArgumentException (stub {})))
+    (is (thrown? IllegalArgumentException (stub Spy AProtocol Object))))
+
   (testing "with no provided implementations"
     (let [subject (stub AProtocol)]
       (is (nil? (foo subject)))
