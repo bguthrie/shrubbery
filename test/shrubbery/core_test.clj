@@ -190,6 +190,13 @@
   (testing "a protocol in a different namespace"
     (let [subject (stub shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly {:duh :uhdoy})]
       (is (= :uhdoy (shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/duh subject)))))
+
+  (testing "multiple protocols across namespaces"
+    (let [subject (stub use-cases/Clearly AProtocol {:foo "foo"})]
+      (is (nil? (use-cases/duh subject)))
+      (is (= "foo" (foo subject)))
+      (is (nil? (bar subject nil)))
+      ))
  )
 
 (deftest test-mock

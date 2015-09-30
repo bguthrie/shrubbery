@@ -153,24 +153,39 @@
         (list (-> proto-fn-name name symbol) gensymmed-arglist stub-value)))
     (-> proto :sigs)))
 
-(defn stub-syntax->reify-syntax [proto impls]
+(defn stub-syntax->reify-syntax [[proto impls]]
   (cons (:on proto) (impl-stub-syntax->impl-reify-syntax proto impls)))
+
+(defn- protocol? [maybe-p]
+  (boolean (:on-interface maybe-p)))
+
+(defn- expand-proto-stubs [protos-and-impls]
+  (loop [retval []
+         stuff protos-and-impls]
+    (let [proto (first stuff)
+          maybe-impl (first (rest stuff))
+          [impl balance] (if (or (nil? maybe-impl) (protocol? maybe-impl))
+                           [{} (rest stuff)]
+                           [maybe-impl (rest (rest stuff))])]
+      (if (nil? proto)
+        retval
+        (recur (conj retval [proto impl]) balance)))))
 
 (defn stub
   "Given a protocol and a hashmap of function implementations, returns a new implementation of that protocol with those
   implementation. Functions as values are not supported, as they would require side effects to define; for more complex
   stubs, prefer `reify`."
-  ([proto] (stub proto {}))
-  ([proto impls]
+  [& protos-and-impls]
+  (let [protos-and-impls (expand-proto-stubs protos-and-impls)
+        everything (map stub-syntax->reify-syntax protos-and-impls)]
     (eval
       `(reify
-         ~@(stub-syntax->reify-syntax proto impls)))))
+         ~@(reduce concat everything)))))
 
 (defn mock
   "Given a protocol and a hashmap of function implementations, returns a new implementation of that protocol with those
   implementations. The returned implementation is also a spy, allowing you to inspect and assert against its calls.
   See `spy` and `stub`."
-  ([proto]
-   (mock proto {}))
-  ([proto impls]
-   (spy (stub proto impls))))
+  [& protos-and-impls]
+  (spy
+    (apply stub protos-and-impls)))
