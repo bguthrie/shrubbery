@@ -164,6 +164,9 @@
        (is (= :foo (baz subject :hello :world)))
        )))
 
+  (testing "with a stub impl that resolves to a function"
+    (is (thrown? RuntimeException (stub AProtocol {:foo (fn [] :foo)}))))
+
   (testing "with an immediate simple primitive"
     (let [subject (stub AProtocol {:foo 1 :bar "two" :baz 'three})]
       (is (= 1 (foo subject)))

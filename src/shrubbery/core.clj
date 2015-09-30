@@ -123,7 +123,7 @@
         (eval everything)))))
 
 (defprotocol Stubbable
-  (reify-syntax-for-stub [thing arglist]))
+  (reify-syntax-for-stub [thing]))
 
 (extend-protocol Stubbable
   ; I'm leaving this here for historical reasons, but am making an explicit choice
@@ -135,30 +135,33 @@
   ;  (let [fn-sym (gensym)]
   ;    (intern *ns* fn-sym thing)
   ;    `(~fn-sym ~@arglist)))
+  clojure.lang.AFunction
+  (reify-syntax-for-stub [_] (throw (RuntimeException. "Fns not supported in stub implementations")))
   clojure.lang.Symbol
-  (reify-syntax-for-stub [thing arglist]
-    `'~thing)
+  (reify-syntax-for-stub [thing] `'~thing)
   java.lang.Object
-  (reify-syntax-for-stub [thing arglist] thing)
+  (reify-syntax-for-stub [thing] thing)
   )
 
 ;; AProtocol{foo,bar,baz}, {:foo 5, :bar nil, :baz nil} -> '((foo [_] 5) (bar [_ _] nil) (baz [_ _ _] nil))
-(defn- impl-stub-syntax->impl-reify-syntax [proto impl-hash]
-  (map
-    (fn [[proto-fn-name proto-fn-sig]]
-      (let [arglist           (-> proto-fn-sig :arglists first)
-            gensymmed-arglist (vec (map (comp gensym symbol) arglist))
-            stub-impl-or-nil  (get impl-hash proto-fn-name)
-            stub-value        (when-not (nil? stub-impl-or-nil) (reify-syntax-for-stub stub-impl-or-nil gensymmed-arglist))]
-        (list (-> proto-fn-name name symbol) gensymmed-arglist stub-value)))
-    (-> proto :sigs)))
+(defn- stub-fn [proto impl-hash [m sig]]
+  (let [args              (-> sig :arglists first)
+        f-sym             (-> sig :name)
+        proto-ns          (-> proto :var meta :ns)
+        f-ref             (symbol (str proto-ns) (str f-sym))
+        stub-impl-or-nil  (get impl-hash m)
+        stub-value        (when-not (nil? stub-impl-or-nil) (reify-syntax-for-stub stub-impl-or-nil))]
+    `(~f-ref ~args ~stub-value)))
 
-(defn stub-syntax->reify-syntax [[proto impls]]
-  (cons (:on proto) (impl-stub-syntax->impl-reify-syntax proto impls)))
+(defn stub-reify-syntax [[proto impls]]
+  (let [mimpls (map (partial stub-fn proto impls) (:sigs proto))]
+    `(~(:on proto)
+       ~@mimpls)))
 
 (defn- protocol? [maybe-p]
   (boolean (:on-interface maybe-p)))
 
+;; [AProto Impl? ...] -> [AProto Impl ...]
 (defn- expand-proto-stubs [protos-and-impls]
   (loop [retval []
          stuff protos-and-impls]
@@ -177,7 +180,7 @@
   stubs, prefer `reify`."
   [& protos-and-impls]
   (let [protos-and-impls (expand-proto-stubs protos-and-impls)
-        everything (map stub-syntax->reify-syntax protos-and-impls)]
+        everything (map stub-reify-syntax protos-and-impls)]
     (eval
       `(reify
          ~@(reduce concat everything)))))
