@@ -97,27 +97,30 @@
        (~f-ref ~proxy-sym ~@(rest args))) ;   (some.ns/foo proto-impl a b))
     ))
 
+(defn- proto-spy-reify-syntax [atom-sym proxy-sym proto]
+  (let [recorder `(fn [m# & args#] (swap! ~atom-sym assoc m# (conj (-> ~atom-sym deref m#) (rest args#))))
+        mimpls (map (partial proto-fn-with-proxy proxy-sym proto recorder) (-> proto :sigs))]
+    `(~(:on proto)
+       ~@mimpls)))
+
 (defn spy
   "Given a protocol and an implementation of that protocol, returns a new implementation of that protocol that counts
   the number of times each method was received. The returned implementation also implements `Spy`, which exposes those
   counts. Each method is proxied to the given impl after capture."
-  [aproxy proto]
-  (let [atom-sym (gensym "counts")
-        proxy-sym (gensym "proxy")
-        recorder `(fn [m# & args#] (swap! ~atom-sym assoc m# (conj (-> ~atom-sym deref m#) (rest args#))))
-        mimpls (map (partial proto-fn-with-proxy proxy-sym proto recorder) (-> proto :sigs))]
+  ([aproxy]
+   (spy aproxy (protocols aproxy)))
+  ([aproxy protos]
+    (let [atom-sym (gensym "counts")
+          proxy-sym (gensym "proxy")
+          spy-syntax `(Spy (calls [t#] (deref ~atom-sym)) (proxied [t#] ~proxy-sym))
+          all-protos-syntax (map (partial proto-spy-reify-syntax atom-sym proxy-sym) protos)
+          everything `(let [~atom-sym (atom {})
+                            ~proxy-sym *proxy*]
+                        (reify
+                          ~@(reduce concat (conj all-protos-syntax spy-syntax))))]
 
-    (binding [*proxy* aproxy]
-      (eval
-        `(let [~atom-sym (atom {})
-               ~proxy-sym *proxy*]
-          (reify
-            ~(:on proto)
-            ~@mimpls
-            Spy
-            (calls [t#] (deref ~atom-sym))
-            (proxied [t#] ~proxy-sym)
-            ))))))
+      (binding [*proxy* aproxy]
+        (eval everything)))))
 
 (defprotocol Stubbable
   (reify-syntax-for-stub [thing arglist]))
@@ -170,4 +173,4 @@
   ([proto]
    (mock proto {}))
   ([proto impls]
-   (spy (stub proto impls) proto)))
+   (spy (stub proto impls))))

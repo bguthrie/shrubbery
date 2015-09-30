@@ -17,7 +17,7 @@
 
 (deftest test-spy
   (testing "a simple call counter"
-    (let [subject (spy proto AProtocol)]
+    (let [subject (spy proto)]
       (is (= 0 (call-count subject :foo)))
       (is (= :hello-foo (foo subject)))
       (is (= 1 (call-count subject :foo)))
@@ -26,14 +26,14 @@
       ))
 
   (testing "correct proxy behavior"
-    (let [subject (spy proto AProtocol)]
+    (let [subject (spy proto)]
       (is (= :hello-foo (foo subject)))
       (is (= :hello-bar (bar subject nil)))
       (is (= :hello-baz (baz subject nil nil)))
       ))
 
   (testing "a call counter with simple argument equality"
-    (let [subject (spy proto AProtocol)]
+    (let [subject (spy proto)]
       (is (= 0 (call-count subject :bar)))
 
       (bar subject "yes")
@@ -45,7 +45,7 @@
       ))
 
   (testing "a call counter with regexp matching"
-    (let [subject (spy proto AProtocol)]
+    (let [subject (spy proto)]
       (is (= 0 (call-count subject :bar)))
 
       (bar subject "yes")
@@ -62,7 +62,7 @@
       ))
 
   (testing "a call counter that matches anything"
-    (let [subject (spy proto AProtocol)]
+    (let [subject (spy proto)]
       (is (= 0 (call-count subject :bar)))
 
       (bar subject "wow such matching")
@@ -71,7 +71,7 @@
       ))
 
   (testing "a call counter that matches multiple arguments"
-    (let [subject (spy proto AProtocol)]
+    (let [subject (spy proto)]
       (is (= 0 (call-count subject :baz)))
 
       (baz subject "hello" "world")
@@ -81,7 +81,7 @@
       ))
 
   (testing "a call counter with arbitrary matching"
-    (let [subject (spy proto AProtocol)]
+    (let [subject (spy proto)]
       (is (= 0 (call-count subject :baz)))
 
       (bar subject 2)
@@ -94,16 +94,42 @@
 
   (testing "a protocol in a different namespace"
     (let [impl (reify shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly (duh [t] :uhdoy))
-          subject (spy impl shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly)]
+          subject (spy impl)]
       (is (= 0 (call-count subject :duh)))
       (is (= :uhdoy (shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/duh subject)))
       (is (= 1 (call-count subject :duh)))
+      ))
+
+  (testing "an implementation with multiple protocols across namespaces"
+    (let [impl (reify
+                 use-cases/Clearly
+                 (duh [_] :uhdoy)
+                 AProtocol
+                 (foo [_] :foo)
+                 (bar [_ _] :bar)
+                 (baz [_ _ _] :baz))
+          subject (spy impl)]
+      (is (= 0 (call-count subject :duh)))
+      (is (= :uhdoy (use-cases/duh subject)))
+      (is (= 1 (call-count subject :duh)))
+
+      (is (= 0 (call-count subject :foo)))
+      (is (= :foo (foo subject)))
+      (is (= 1 (call-count subject :foo)))
+
+      (is (= 0 (call-count subject :bar)))
+      (is (= :bar (bar subject nil)))
+      (is (= 1 (call-count subject :bar)))
+
+      (is (= 0 (call-count subject :baz)))
+      (is (= :baz (baz subject nil nil)))
+      (is (= 1 (call-count subject :baz)))
       ))
   )
 
 (deftest test-received?
   (testing "a simple received? call"
-    (let [subject (spy proto AProtocol)]
+    (let [subject (spy proto)]
       (foo subject)
       (is (received? subject foo))
       (is (not (received? subject bar)))
