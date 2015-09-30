@@ -1,6 +1,5 @@
 (ns shrubbery.core
-  (:require [clojure.string :as str])
-  (:import (clojure.lang Var)))
+  (:require [clojure.string :as str]))
 
 (defprotocol Spy
   "A protocol for objects that expose call counts. `calls` should return a map of function names to lists of received
@@ -9,8 +8,22 @@
   (proxied [t]))
 
 (defprotocol Stub
-  "A protocol for defining stubs. `protocol` should return a reference to the protocol that this stub implements."
-  (protocol [t]))
+  "A protocol for defining stubs. `protocol` should return a reference to the protocol that this stub implements.")
+
+(defn protocol?
+  "True if p is a protocol."
+  [p]
+  (boolean (:on-interface p)))
+
+(defn stub?
+  "True if s reifies Stub."
+  [s]
+  (instance? (:on-interface Stub) s))
+
+(defn spy?
+  "True if s reifies Spy."
+  [s]
+  (instance? (:on-interface Spy) s))
 
 (defprotocol Matcher
   "A protocol for defining argument equality matching. Default implementations are provided for `Object` (equality),
@@ -160,9 +173,6 @@
 (defn- stub-reify-syntax [[proto impls]]
   (reify-syntax-for-single-proto proto (partial stub-fn proto impls)))
 
-(defn- protocol? [maybe-p]
-  (boolean (:on-interface maybe-p)))
-
 (defn- impl? [maybe-impl]
   (and (not (protocol? maybe-impl)) (map? maybe-impl)))
 
@@ -191,7 +201,8 @@
     (throw (IllegalArgumentException. "Must provide at least one protocol to stub.")))
 
   (let [protos-and-impls (expand-proto-stubs protos-and-impls)
-        everything (map stub-reify-syntax protos-and-impls)]
+        stub-impls (map stub-reify-syntax protos-and-impls)
+        everything (conj stub-impls `(Stub))]
     (eval
       `(reify
          ~@(reduce concat everything)))))

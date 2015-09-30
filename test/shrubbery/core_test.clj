@@ -20,6 +20,11 @@
     (is (thrown? IllegalArgumentException (spy (Object.))))
     (is (thrown? IllegalArgumentException (spy proto []))))
 
+  (testing "that it's an instance"
+    (is (spy? (spy proto)))
+    (is (not (spy? proto)))
+    (is (not (spy? (Object.)))))
+
   (testing "a simple call counter"
     (let [subject (spy proto)]
       (is (= 0 (call-count subject :foo)))
@@ -145,6 +150,11 @@
       )))
 
 (deftest test-stub
+  (testing "that it's an instance"
+    (is (stub? (stub AProtocol)))
+    (is (not (stub? proto)))
+    (is (not (stub? (Object.)))))
+
   (testing "with illegal arguments"
     (is (thrown? IllegalArgumentException (stub)))
     (is (thrown? IllegalArgumentException (stub {})))
