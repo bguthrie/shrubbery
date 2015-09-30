@@ -1,7 +1,8 @@
 (ns shrubbery.core-test
   (:require [clojure.test :refer :all]
             [shrubbery.core :refer :all]
-            [shrubbery.clojure.test :refer :all]))
+            [shrubbery.clojure.test :refer :all]
+            [shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases :as use-cases]))
 
 (defprotocol AProtocol
   (foo [this])
@@ -90,6 +91,14 @@
       (is (= 2 (call-count subject :bar [#(> % 0)])))
       (is (= 1 (call-count subject :bar [#(> % 1)])))
       ))
+
+  (testing "a protocol in a different namespace"
+    (let [impl (reify shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly (duh [t] :uhdoy))
+          subject (spy impl shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly)]
+      (is (= 0 (call-count subject :duh)))
+      (is (= :uhdoy (shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/duh subject)))
+      (is (= 1 (call-count subject :duh)))
+      ))
   )
 
 (deftest test-received?
@@ -151,6 +160,10 @@
       (is (= "two" (bar subject :hello)))
       (is (= 'three (baz subject :hello :world)))
       ))
+
+  (testing "a protocol in a different namespace"
+    (let [subject (stub shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly {:duh :uhdoy})]
+      (is (= :uhdoy (shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/duh subject)))))
  )
 
 (deftest test-mock
@@ -180,7 +193,7 @@
   AProtocol)
 
 (deftest test-protocols
-  (testing "with no known protocols"
+  (testing "with no protocols"
     (let [subject (Object.)]
       (is (= #{} (protocols subject)))))
 
@@ -194,10 +207,13 @@
 
   (testing "with multiple protocols from different namespaces"
     (let [subject (reify AProtocol shrubbery.core/Spy shrubbery.core/Stub)]
-      (is (= #{AProtocol shrubbery.core/Spy shrubbery.core/Stub} (protocols subject)))
-      ))
+      (is (= #{AProtocol shrubbery.core/Spy shrubbery.core/Stub} (protocols subject)))))
 
   (testing "with a record that implements a protocol"
     (let [subject (->RecProtocol)]
       (is (= #{AProtocol} (protocols subject)))))
+
+  (testing "with a non-local protocol"
+    (let [subject (reify shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly)]
+      (is (= #{shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly} (protocols subject)))))
   )
