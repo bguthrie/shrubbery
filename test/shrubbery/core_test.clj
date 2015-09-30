@@ -2,11 +2,7 @@
   (:require [clojure.test :refer :all]
             [shrubbery.core :refer :all]
             [shrubbery.clojure.test :refer :all]
-<<<<<<< HEAD
-            [shrubbery.proto-helper :as p]))
-=======
             [shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases :as use-cases]))
->>>>>>> master
 
 (defprotocol AProtocol
   (foo [this])
@@ -30,13 +26,8 @@
     (is (not (spy? (Object.)))))
 
   (testing "a simple call counter"
-<<<<<<< HEAD
-    (let [subject (spy AProtocol proto)]
-      (is (= 0 (call-count subject foo)))
-=======
     (let [subject (spy proto)]
-      (is (= 0 (call-count subject :foo)))
->>>>>>> master
+      (is (= 0 (call-count subject foo)))
       (is (= :hello-foo (foo subject)))
       (is (= 1 (call-count subject foo)))
       (is (= :hello-foo (foo subject)))
@@ -51,13 +42,8 @@
       ))
 
   (testing "a call counter with simple argument equality"
-<<<<<<< HEAD
-    (let [subject (spy AProtocol proto)]
-      (is (= 0 (call-count subject bar)))
-=======
     (let [subject (spy proto)]
-      (is (= 0 (call-count subject :bar)))
->>>>>>> master
+      (is (= 0 (call-count subject bar)))
 
       (bar subject "yes")
       (is (= 0 (call-count subject bar ["no"])))
@@ -68,13 +54,8 @@
       ))
 
   (testing "a call counter with regexp matching"
-<<<<<<< HEAD
-    (let [subject (spy AProtocol proto)]
-      (is (= 0 (call-count subject bar)))
-=======
     (let [subject (spy proto)]
-      (is (= 0 (call-count subject :bar)))
->>>>>>> master
+      (is (= 0 (call-count subject bar)))
 
       (bar subject "yes")
       (is (= 0 (call-count subject bar ["no"])))
@@ -90,13 +71,8 @@
       ))
 
   (testing "a call counter that matches anything"
-<<<<<<< HEAD
-    (let [subject (spy AProtocol proto)]
-      (is (= 0 (call-count subject bar)))
-=======
     (let [subject (spy proto)]
-      (is (= 0 (call-count subject :bar)))
->>>>>>> master
+      (is (= 0 (call-count subject bar)))
 
       (bar subject "wow such matching")
       (is (= 1 (call-count subject bar)))
@@ -104,13 +80,8 @@
       ))
 
   (testing "a call counter that matches multiple arguments"
-<<<<<<< HEAD
-    (let [subject (spy AProtocol proto)]
-      (is (= 0 (call-count subject baz)))
-=======
     (let [subject (spy proto)]
-      (is (= 0 (call-count subject :baz)))
->>>>>>> master
+      (is (= 0 (call-count subject baz)))
 
       (baz subject "hello" "world")
       (is (= 1 (call-count subject baz ["hello" "world"])))
@@ -119,13 +90,8 @@
       ))
 
   (testing "a call counter with arbitrary matching"
-<<<<<<< HEAD
-    (let [subject (spy AProtocol proto)]
-      (is (= 0 (call-count subject baz)))
-=======
     (let [subject (spy proto)]
-      (is (= 0 (call-count subject :baz)))
->>>>>>> master
+      (is (= 0 (call-count subject baz)))
 
       (bar subject 2)
       (is (= 1 (call-count subject bar [#(> % 1)])))
@@ -138,9 +104,9 @@
   (testing "a protocol in a different namespace"
     (let [impl (reify shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly (duh [t] :uhdoy))
           subject (spy impl)]
-      (is (= 0 (call-count subject :duh)))
+      (is (= 0 (call-count subject use-cases/duh)))
       (is (= :uhdoy (shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/duh subject)))
-      (is (= 1 (call-count subject :duh)))
+      (is (= 1 (call-count subject use-cases/duh)))
       ))
 
   (testing "an implementation with multiple protocols across namespaces"
@@ -152,21 +118,21 @@
                  (bar [_ _] :bar)
                  (baz [_ _ _] :baz))
           subject (spy impl)]
-      (is (= 0 (call-count subject :duh)))
+      (is (= 0 (call-count subject use-cases/duh)))
       (is (= :uhdoy (use-cases/duh subject)))
-      (is (= 1 (call-count subject :duh)))
+      (is (= 1 (call-count subject use-cases/duh)))
 
-      (is (= 0 (call-count subject :foo)))
+      (is (= 0 (call-count subject use-cases/duh)))
       (is (= :foo (foo subject)))
-      (is (= 1 (call-count subject :foo)))
+      (is (= 1 (call-count subject use-cases/duh)))
 
-      (is (= 0 (call-count subject :bar)))
+      (is (= 0 (call-count subject use-cases/duh)))
       (is (= :bar (bar subject nil)))
-      (is (= 1 (call-count subject :bar)))
+      (is (= 1 (call-count subject use-cases/duh)))
 
-      (is (= 0 (call-count subject :baz)))
+      (is (= 0 (call-count subject use-cases/duh)))
       (is (= :baz (baz subject nil nil)))
-      (is (= 1 (call-count subject :baz)))
+      (is (= 1 (call-count subject use-cases/duh)))
       ))
   )
 
@@ -208,15 +174,6 @@
       (is (nil? (baz subject :hello :world)))
       ))
 
-<<<<<<< HEAD
-  (testing "with a let-binding that resolves to a function"
-    (let [some-fn (fn [& args] :foo)
-          subject (stub AProtocol {foo some-fn bar some-fn baz some-fn})]
-      (is (= :foo (foo subject)))
-      (is (= :foo (bar subject :hello)))
-      (is (= :foo (baz subject :hello :world)))
-      ))
-=======
   (comment
     (testing "with a let-binding that resolves to a function"
      (let [some-fn (fn [& args] :foo)
@@ -228,7 +185,6 @@
 
   (testing "with a stub impl that resolves to a function"
     (is (thrown? RuntimeException (stub AProtocol {:foo (fn [] :foo)}))))
->>>>>>> master
 
   (testing "with an immediate simple primitive"
     (let [subject (stub AProtocol {foo 1 bar "two" baz 'three})]
@@ -278,13 +234,8 @@
       ))
 
   (testing "with a basic implementation"
-<<<<<<< HEAD
-    (let [subject (mock AProtocol {bar (fn [this that] that)})]
-      (is (= "wow" (bar subject "wow")))
-=======
     (let [subject (mock AProtocol {:bar 5})]
       (is (= 5 (bar subject "wow")))
->>>>>>> master
       (is (received? subject bar))
       (is (not (received? subject foo)))
       (is (received? subject bar ["wow"]))
@@ -292,43 +243,6 @@
       ))
   )
 
-<<<<<<< HEAD
-(deftest test-namespaced-spy
-  (testing "a simple call counter"
-    (let [subject (spy p/NamespacedProto
-                       (reify p/NamespacedProto
-                         (zzz [_])))]
-      (is (= 0 (call-count subject p/zzz)))
-      (p/zzz subject)
-      (is (= 1 (call-count subject p/zzz)))
-      (p/zzz subject)
-      (is (= 2 (call-count subject p/zzz)))
-      ))
-  )
-
-(deftest test-namespaced-mock
-  (testing "with no provided implementations"
-    (let [subject (mock p/NamespacedProto)]
-      (is (nil? (p/zzz subject)))
-      (is (received? subject p/zzz))
-      ))
-
-  (testing "with an empty implementation"
-    (let [subject (mock p/NamespacedProto {})]
-      (is (nil? (p/zzz subject)))
-      (is (received? subject p/zzz))
-      ))
-
-  (testing "with a basic implementation"
-    (let [subject (mock p/NamespacedProto {p/zzz-arged (fn [this that] that)})]
-      (is (= "wow" (p/zzz-arged subject "wow")))
-      (is (received? subject p/zzz-arged))
-      (is (not (received? subject p/zzz)))
-      (is (received? subject shrubbery.proto-helper/zzz-arged ["wow"]))
-      (is (not (received? subject p/zzz-arged ["woo"])))
-      ))
-  )
-=======
 (defrecord RecProtocol []
   AProtocol)
 
@@ -357,4 +271,3 @@
     (let [subject (reify shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly)]
       (is (= #{shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly} (protocols subject)))))
   )
->>>>>>> master

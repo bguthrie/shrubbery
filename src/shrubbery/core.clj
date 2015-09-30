@@ -55,25 +55,14 @@
     (matches? [_ _] true)))
 
 (defn call-count
-<<<<<<< HEAD
   "Given a spy, a var, and an optional vector of args, return the number of times the spy received
-  the method. If given args, filters the list of calls by matching the given args. Matched args may implement the `Matcher`
-  protocol; the default implementation for `Object` is `=`."
-  ([spy var]
-   (-> (calls spy) (get var) (count)))
-  ([spy var args]
-   (->>
-     (get (calls spy) var)
-=======
-  "Given a spy, a keyword method name, and an optional vector of args, return the number of times the spy received
   the method. If given args, filters the list of calls by matching the given args. Matched args may implement the
   `Matcher` protocol; the default implementation for `Object` is `=`."
-  ([spy method]
-   (-> (calls spy) (get method) (count)))
-  ([spy method args]
+  ([spy avar]
+   (-> (calls spy) (get avar) (count)))
+  ([spy avar args]
   (->>
-     (get (calls spy) method)
->>>>>>> master
+     (get (calls spy) avar)
      (filter #(matches? args %))
      (count))))
 
@@ -81,16 +70,10 @@
   "Given a spy and a method reference, return true if the method has been called on the spy at least once. If given
   args, filters the list of calls by matching the given args. Matched args may implement the `Matcher` protocol;
   the default implementation for `Object` is `=`."
-  ([spy method]
-<<<<<<< HEAD
-   `(>= (call-count ~spy ~method) 1))
-  ([spy method args]
-   `(>= (call-count ~spy ~method ~args) 1)))
-=======
-   (>= (call-count spy (-> method str keyword)) 1))
-  ([spy method args]
-   (>= (call-count spy (-> method str keyword) args) 1)))
->>>>>>> master
+  ([spy avar]
+   (>= (call-count spy avar) 1))
+  ([spy avar args]
+   (>= (call-count spy avar args) 1)))
 
 (defn- find-proto-var
   "Attempts to find the protocol var representing the given class, or nil if none found."
@@ -118,84 +101,13 @@
 (defn- proto-fn-with-proxy
   "Given a protocol implementation, a function with side effects, and a protcol function signature, return
   a syntax-quoted protocol method implementation that calls the function, then proxies to the given implementation."
-<<<<<<< HEAD
-  [impl f ns [m sig]]
-  (let [f-sym (-> m name symbol)
-        args (-> sig :arglists first)]
-    `(~f-sym ~args                                          ; (foo [this a b]
-       ~(apply f (symbol ns (name m)) args)         ;   ((fn [method this a b] ...) :foo this a b)
-       (~(symbol ns (name f-sym)) ~impl ~@(rest args)))     ;   (foo proto-impl a b))
-    ))
-
-(defn proto-fn-with-impl
-  "Given a function and a protocol function signature, return a syntax-quoted protocol method implementation that
-  calls the function."
-  [f [m sig]]
-  (let [f-sym (-> m name symbol)
-        args (-> sig :arglists first)]
-    `(~f-sym ~args                                          ; (foo [this a b]
-       (~f ~@args))                                         ;   ((fn [method this a b] ...) :foo this a b)
-    ))
-
-(defn namespace-str [proto]
-  (-> proto resolve meta :ns str))
-
-(defmacro spy
-  "Given a protocol and an implementation of that protocol, returns a new implementation of that protocol that counts
-  the number of times each method was received. The returned implementation also implements `Spy`, which exposes those
-  counts. Each method is proxied to the given impl after capture."
-  [proto proxy]
-  (let [atom-sym (gensym "counts")
-        recorder (fn [m & args] `(swap! ~atom-sym update-in [~m] conj (list ~@(rest args))))
-        mimpls (map (partial proto-fn-with-proxy proxy recorder (namespace-str proto)) (fn-sigs proto))]
-    `(let [~atom-sym (atom {})]
-       (reify
-         ~proto
-         ~@mimpls
-         Spy
-         (calls [t#] (deref ~atom-sym))
-         (proxied [t#] ~proxy)
-         ))))
-
-(defn- wrap-fn [impls m]
-  (if-let [o (impls m)]
-    `(fn [& args#] (if (fn? ~o) (apply ~o args#) ~o))
-    `(fn [& args#] nil)))
-
-(defmacro stub
-  "Given a protocol and a hashmap of function implementations, returns a new implementation of that protocol with those
-  implementations. If no function implementation is given for a method, that method will return `nil` when called."
-  ([proto]
-   `(stub ~proto {}))
-  ([proto impls]
-   (let [impls (into {} (for [[k v] impls] [(resolve k) v]))
-         sigs (fn-sigs proto)
-         fns (map (fn [[m _]] (wrap-fn impls (resolve (symbol (namespace-str proto)
-                                                              (name m))))) sigs)
-         mimpls (map proto-fn-with-impl fns sigs)]
-     `(reify
-        ~proto
-        ~@mimpls
-        Stub
-        (protocol [t#] ~proto))
-     )))
-
-(defmacro mock
-  "Given a protocol and a hashmap of function implementations, returns a new implementation of that protocol with those
-  implementations. The returned implementation is also a spy, allowing you to inspect and assert against its calls.
-  See `spy` and `stub`."
-  ([proto]
-   `(mock ~proto {}))
-  ([proto impls]
-   `(spy ~proto (stub ~proto ~impls))))
-=======
   [proxy-sym proto f [m sig]]
   (let [args     (-> sig :arglists first)
         f-sym    (-> sig :name)
         proto-ns (-> proto :var meta :ns)
         f-ref    (symbol (str proto-ns) (str f-sym))]
     `(~f-ref ~args                        ; (some.ns/foo [this a b]
-       (~f ~m ~@args)                     ;   ((fn [method this a b] ...) :foo this a b)
+       (~f ~f-ref ~@args)                 ;   ((fn [method this a b] ...) some.ns/foo this a b)
        (~f-ref ~proxy-sym ~@(rest args))) ;   (some.ns/foo proto-impl a b))
     ))
 
@@ -223,7 +135,7 @@
                            ~proxy-sym *proxy*]
                        (reify
                          ~@(reduce concat (conj all-protos-syntax spy-syntax))))]
-
+     (println everything)
      (binding [*proxy* o]
        (eval everything)))))
 
@@ -302,4 +214,3 @@
   [& protos-and-impls]
   (spy
     (apply stub protos-and-impls)))
->>>>>>> master
