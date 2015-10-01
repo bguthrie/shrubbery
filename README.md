@@ -4,27 +4,34 @@ A stubbing, spying, and mocking library for Clojure protocols.
 
 ## Purpose
 
-If you've ever used Midje's `given` macro, you understand the occasional need to test functions that have side effects. 
-Luckily, there's a better way.
+If you've ever unit-tested a stateful Clojure application, you may have found yourself needing to address functions
+with side effects. Am example is an HTTP endpoint that in turn relies on a secondary function to query a 
+database and return a result. Traditionally one might test interaction with the offending function by swapping out its 
+var at runtime with more desirable behavior. This has a number of drawbacks.
 
-Clojure protocols, for example, are a _great_ way to encapsulate operations with side effects, but suffer from a general
+Many Clojure programmers now embrace the use of protocols, passed to functions that need them on demand, as an
+way of inverting those dependencies. This expands the arity of those functions but has the benefit of making 
+their side effects explicit and easily testable. [Component](https://github.com/stuartsierra/component) is one framework
+that encourages this dependency-injected approach.
+
+Although Clojure protocols are a great way to encapsulate operations with side effects, they suffer from a general
 lack of test tooling. Shrubbery provides a small set of basic building blocks for working with them:
 
  * `stub`, which accepts a variable list of protocols and a optional hashmap of simple value implementations and
    returns an object that reifies all given protocols;
  * `spy`, which accepts an object with at least one protocol implementation and returns a new implementation that 
-    tracks the number of times each of its members were called;
+   tracks the number of times each of its members were called;
  * `mock`, which wraps a `stub` in a `spy`, allowing callers to supply basic function implementations _and_ assert
-    against those calls; and
- * `received?`, which in conjunction with the `Matcher` protocol provides a way to query spies programmatically for
-   test assertion purposes.
+   against those calls; and
+ * `calls`/`received?`, which in conjunction with the `Matcher` protocol provide a way to query spies and assert against
+   their state.
  
 Both spies and stubs can be used more or less independently; any protocol implementation may be wrapped by a spy, and 
 stubs need not be spies to provide basic test utility.
 
 Shrubbery is test framework-agnostic, has no external dependencies, makes no attempt to perform runtime var replacement
-(unlike `given`) and uses no macros. It is simply meant to provide basic protocol implementation support in the meagre 
-hope that it makes your tests (and your day) slightly more pleasant.
+and uses no macros. It is simply meant to provide basic protocol implementation support in the meagre hope that it makes 
+your tests (and your day) slightly more pleasant.
 
 ### Before You Begin
 
@@ -35,10 +42,10 @@ the subject, [Mocks Aren't Stubs](http://martinfowler.com/articles/mocksArentStu
 
 ### Caveats
 
-Shrubbery uses protocol reflection to reify them programmatically using `eval`. I don't especially like using `eval` or 
-recommend others use it, but if there's a way to reify protocols dynamically without resorting to it then I haven't 
+Shrubbery uses protocol reflection and `eval` to perform dynamic reification without resorting to macros. I don't 
+especially like using `eval` or recommend others use it, but if there's a way to improve on the situation I haven't 
 found it. Some somewhat-obvious use cases suffer for having to drop down into syntax parsing––for example,
-in limiting the kinds of simple values you can pass as `stub` implementations.
+in limiting the kinds of simple values you can pass as stub implementations.
 
 ## Releases
 
