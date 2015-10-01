@@ -93,27 +93,27 @@
        (map var-get)
        (set)))
 
-(defn- reify-syntax-for-single-proto [proto f]
+(defn- proxy-syntax-for-single-proto [proto f]
   (let [mimpls (map f (-> proto :sigs))]
     `(~(:on proto)
        ~@mimpls)))
 
+(defn increment-args [counts-state m & args]
+  (assoc counts-state m (conj (counts-state m) args)))
+
 (defn- proto-fn-with-proxy
   "Given a protocol implementation, a function with side effects, and a protcol function signature, return
   a syntax-quoted protocol method implementation that calls the function, then proxies to the given implementation."
-  [proxy-sym proto f [m sig]]
-  (let [args     (-> sig :arglists first)
-        f-sym    (-> sig :name)
-        proto-ns (-> proto :var meta :ns)
-        f-ref    (symbol (str proto-ns) (str f-sym))]
-    `(~f-ref ~args                        ; (some.ns/foo [this a b]
-       (~f ~f-ref ~@args)                 ;   ((fn [method this a b] ...) some.ns/foo this a b)
-       (~f-ref ~proxy-sym ~@(rest args))) ;   (some.ns/foo proto-impl a b))
+  [proxy-sym proto atom-sym [m sig]]
+  (let [args  (-> sig :arglists first)
+        f-ref (symbol (-> proto :var meta :ns str) (-> sig :name str))]
+    `(~f-ref ~args                                           ; (some.ns/foo [this a b c]
+       (swap! ~atom-sym increment-args ~f-ref ~@(rest args)) ;   (swap! counts increment-args #'some.ns/foo a b c)
+       (~f-ref ~proxy-sym ~@(rest args)))                    ;   (some.ns/foo proto-impl a b))
     ))
 
 (defn- proto-spy-reify-syntax [atom-sym proxy-sym proto]
-  (let [recorder `(fn [m# & args#] (swap! ~atom-sym assoc m# (conj (-> ~atom-sym deref m#) (rest args#))))]
-    (reify-syntax-for-single-proto proto (partial proto-fn-with-proxy proxy-sym proto recorder))))
+  (proxy-syntax-for-single-proto proto (partial proto-fn-with-proxy proxy-sym proto atom-sym)))
 
 (declare ^:dynamic *proxy*)
 
@@ -135,7 +135,6 @@
                            ~proxy-sym *proxy*]
                        (reify
                          ~@(reduce concat (conj all-protos-syntax spy-syntax))))]
-     (println everything)
      (binding [*proxy* o]
        (eval everything)))))
 
@@ -171,7 +170,7 @@
     `(~f-ref ~args ~stub-value)))
 
 (defn- stub-reify-syntax [[proto impls]]
-  (reify-syntax-for-single-proto proto (partial stub-fn proto impls)))
+  (proxy-syntax-for-single-proto proto (partial stub-fn proto impls)))
 
 (defn- impl? [maybe-impl]
   (and (not (protocol? maybe-impl)) (map? maybe-impl)))

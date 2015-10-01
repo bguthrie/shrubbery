@@ -122,17 +122,17 @@
       (is (= :uhdoy (use-cases/duh subject)))
       (is (= 1 (call-count subject use-cases/duh)))
 
-      (is (= 0 (call-count subject use-cases/duh)))
+      (is (= 0 (call-count subject foo)))
       (is (= :foo (foo subject)))
-      (is (= 1 (call-count subject use-cases/duh)))
+      (is (= 1 (call-count subject foo)))
 
-      (is (= 0 (call-count subject use-cases/duh)))
+      (is (= 0 (call-count subject bar)))
       (is (= :bar (bar subject nil)))
-      (is (= 1 (call-count subject use-cases/duh)))
+      (is (= 1 (call-count subject bar)))
 
-      (is (= 0 (call-count subject use-cases/duh)))
+      (is (= 0 (call-count subject baz)))
       (is (= :baz (baz subject nil nil)))
-      (is (= 1 (call-count subject use-cases/duh)))
+      (is (= 1 (call-count subject baz)))
       ))
   )
 
@@ -187,7 +187,7 @@
     (is (thrown? RuntimeException (stub AProtocol {:foo (fn [] :foo)}))))
 
   (testing "with an immediate simple primitive"
-    (let [subject (stub AProtocol {foo 1 bar "two" baz 'three})]
+    (let [subject (stub AProtocol {:foo 1 :bar "two" :baz 'three})]
       (is (= 1 (foo subject)))
       (is (= "two" (bar subject :hello)))
       (is (= 'three (baz subject :hello :world)))
@@ -195,7 +195,7 @@
 
   (testing "with a let-binding that resolves to a primitive"
     (let [some-o "some object"
-          subject (stub AProtocol {foo some-o bar some-o baz some-o})]
+          subject (stub AProtocol {:foo some-o :bar some-o :baz some-o})]
       (is (= "some object" (foo subject)))
       (is (= "some object" (bar subject :hello)))
       (is (= "some object" (baz subject :hello :world)))
