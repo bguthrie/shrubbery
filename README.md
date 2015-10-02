@@ -5,9 +5,9 @@ A stubbing, spying, and mocking library for Clojure protocols.
 ## Purpose
 
 If you've ever unit-tested a stateful Clojure application, you may have found yourself needing to address functions
-with side effects. Am example is an HTTP endpoint that in turn relies on a secondary function to query a 
-database and return a result. Traditionally one might test interaction with the offending function by swapping out its 
-var at runtime with more desirable behavior. This has a number of drawbacks.
+with side effects. For example, an HTTP endpoint may rely on a function that queries a database in order to return a 
+result. One might test interaction with the relevant function by replacing its var at runtime with more desirable 
+behavior; Midje's `given` is one tool for doing so. Suffice it to say that this has a number of drawbacks.
 
 Many Clojure programmers now embrace the use of protocols, passed to functions that need them on demand, as an
 way of inverting those dependencies. This expands the arity of those functions but has the benefit of making 
