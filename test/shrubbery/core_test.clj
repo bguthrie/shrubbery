@@ -221,12 +221,49 @@
       ))
  )
 
+(deftest test-returning
+  (testing "with no existing stubbed values"
+    (let [subject (-> (stub AProtocol)
+                      (returning AProtocol {:foo "bar"}))]
+      (is (= "bar" (foo subject)))
+      ))
+
+  (testing "'changing' an existing stubbed value"
+    (let [subject (-> (stub AProtocol {:foo "foo"})
+                      (returning AProtocol {:foo "foo2"}))]
+      (is (= "foo2" (foo subject)))
+      ))
+
+  (testing "existing implementations of the same protocol are unaltered"
+    (let [subject (-> (stub AProtocol {:foo "foo" :bar "bar"})
+                      (returning AProtocol {:foo "foo2"}))]
+      (is (= "bar" (bar subject nil)))
+      (is (= "foo2" (foo subject)))
+      ))
+
+  (testing "'changing' multiple stubbed values at once"
+    (let [subject (-> (stub AProtocol {:foo "foo" :bar "bar"})
+                      (returning AProtocol {:foo "foo2" :bar "bar2"}))]
+      (is (= "foo2" (foo subject)))
+      (is (= "bar2" (bar subject nil)))
+      ))
+
+  (testing "existing implementations of other protocols are unaltered"
+    (let [subject (-> (stub AProtocol {:foo "foo"} use-cases/Clearly {:duh "duh"})
+                      (returning AProtocol {:foo "foo2"}))]
+      (is (= "duh" (use-cases/duh subject)))
+      (is (= "foo2" (foo subject)))
+      ))
+
+  )
+
 (deftest test-mock
   (testing "with no provided implementations"
     (let [subject (mock AProtocol)]
       (is (nil? (foo subject)))
       (is (received? subject foo))
       ))
+
   (testing "with an empty implementation"
     (let [subject (mock AProtocol {})]
       (is (nil? (foo subject)))

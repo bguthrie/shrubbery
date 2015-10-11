@@ -8,7 +8,8 @@
   (proxied [t]))
 
 (defprotocol Stub
-  "A protocol for defining stubs. `protocol` should return a reference to the protocol that this stub implements.")
+  "A protocol for defining stubs. `protocol` should return a reference to the protocol that this stub implements."
+  (all-stubs [t]))
 
 (defn protocol?
   "True if p is a protocol."
@@ -190,6 +191,8 @@
        (not (protocol? proto)) (throw (IllegalArgumentException. (str "Not a Clojure protocol: " proto)))
        :else (recur balance (conj retval [proto impl]))))))
 
+(declare ^:dynamic *stubs*)
+
 (defn stub
   "Given a variable number of protocols, each followed by an optional hashmap of simple implementations, returns a new
   object implementing those protocols. Where no function implementation is provided, calls to that protocol function
@@ -199,12 +202,24 @@
   (when (or (empty? protos-and-impls) (not (protocol? (first protos-and-impls))))
     (throw (IllegalArgumentException. "Must provide at least one protocol to stub.")))
 
-  (let [protos-and-impls (expand-proto-stubs protos-and-impls)
-        stub-impls (map stub-reify-syntax protos-and-impls)
-        everything (conj stub-impls `(Stub))]
-    (eval
-      `(reify
-         ~@(reduce concat everything)))))
+  (let [new-protos-and-impls (expand-proto-stubs protos-and-impls)
+        stub-impls (map stub-reify-syntax new-protos-and-impls)
+        stubs-sym (gensym "stubs")
+        all-protos-syntax (conj stub-impls `(Stub (all-stubs [_] ~stubs-sym)))
+        everything `(let [~stubs-sym *stubs*]
+                      (reify ~@(reduce concat all-protos-syntax)))]
+
+    (binding [*stubs* new-protos-and-impls]
+      (eval everything))))
+
+(defn returning
+  "Given a stub, a protocol, a keyword referencing a protocol function and a return value, return a implementation
+  that stubs the named function with the given value. Not yet compatible with mocks."
+  [s proto new-stubs]
+  (let [all-stubs (apply hash-map (-> s all-stubs flatten))
+        revised-proto-stub (-> all-stubs (get proto) (merge new-stubs))
+        new-all-stubs (-> all-stubs (assoc proto revised-proto-stub) vec flatten)]
+    (apply stub new-all-stubs)))
 
 (defn mock
   "Given a protocol and a hashmap of function implementations, returns a new implementation of that protocol with those
