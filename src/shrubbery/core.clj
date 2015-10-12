@@ -200,7 +200,7 @@
   require side effects to define; for more complex stubs, prefer using `reify`."
   [& protos-and-impls]
   (when (or (empty? protos-and-impls) (not (protocol? (first protos-and-impls))))
-    (throw (IllegalArgumentException. "Must provide at least one protocol to stub.")))
+    (throw (IllegalArgumentException. (str "Must provide at least one protocol to stub; given " protos-and-impls))))
 
   (let [new-protos-and-impls (expand-proto-stubs protos-and-impls)
         stub-impls (map stub-reify-syntax new-protos-and-impls)
@@ -212,15 +212,6 @@
     (binding [*stubs* new-protos-and-impls]
       (eval everything))))
 
-(defn returning
-  "Given a stub, a protocol, a keyword referencing a protocol function and a return value, return a implementation
-  that stubs the named function with the given value. Not yet compatible with mocks."
-  [s proto new-stubs]
-  (let [all-stubs (apply hash-map (-> s all-stubs flatten))
-        revised-proto-stub (-> all-stubs (get proto) (merge new-stubs))
-        new-all-stubs (-> all-stubs (assoc proto revised-proto-stub) vec flatten)]
-    (apply stub new-all-stubs)))
-
 (defn mock
   "Given a protocol and a hashmap of function implementations, returns a new implementation of that protocol with those
   implementations. The returned implementation is also a spy, allowing you to inspect and assert against its calls.
@@ -228,3 +219,18 @@
   [& protos-and-impls]
   (spy
     (apply stub protos-and-impls)))
+
+(defn returning
+  "Given a stub, a protocol, and a hashmap of implementations, return a new stub that replaces the stubs for the named
+  function with the given stubs. Not yet compatible with mocks."
+  [s proto new-stubs]
+  (if-not (stub? s)
+    (throw (IllegalArgumentException. (str "Must provide a mock or a stub; given " s))))
+
+  (let [all-stubs (apply hash-map (-> s all-stubs flatten))
+        revised-proto-stub (-> all-stubs (get proto) (merge new-stubs))
+        new-all-stubs (-> all-stubs (assoc proto revised-proto-stub) vec flatten)]
+    (if (spy? s)
+      (apply mock new-all-stubs)
+      (apply stub new-all-stubs))
+    ))

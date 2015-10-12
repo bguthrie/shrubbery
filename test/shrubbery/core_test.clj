@@ -255,6 +255,21 @@
       (is (= "foo2" (foo subject)))
       ))
 
+  (testing "with no prior implementations of the named protocol"
+    (let [subject (-> (stub AProtocol)
+                      (returning use-cases/Clearly {:duh "duh"}))]
+      (is (= "duh" (use-cases/duh subject)))
+      ))
+
+  (testing "with a mock rather than a stub"
+    (let [subject (-> (mock AProtocol {:foo "foo"})
+                      (returning AProtocol {:foo "bar"}))]
+      (is (= "bar" (foo subject)))
+      (is (spy? subject))
+      (is (received? subject foo))))
+
+  (testing "if given an object that is neither a stub or a mock"
+    (is (thrown? IllegalArgumentException (returning (Object.)))))
   )
 
 (deftest test-mock
