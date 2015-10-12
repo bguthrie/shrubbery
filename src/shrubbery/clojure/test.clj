@@ -1,7 +1,9 @@
 (ns shrubbery.clojure.test
-  "An extension to `clojure.test`'s `is` macro for working with mocks."
-  (require [clojure.test :refer [assert-expr do-report]]
-           [shrubbery.core :refer :all]))
+  "An extension to `clojure.test` that adds a test assertion, `received?`, which relies on [[shrubbery.core/call-count]]
+  to assert that a spy or mock received the named method. This namespace exposes no functions; require it in your tests
+  to use it."
+  (:require [clojure.test :refer [assert-expr do-report]]
+            [shrubbery.core :refer :all]))
 
 (defmethod assert-expr 'received? [msg form]
   `(let [spy# ~(nth form 1)

@@ -3,7 +3,11 @@
   :url "http://github.com/bguthrie/shrubbery"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :profiles {:dev [:test {:dependencies [[org.clojure/clojure "1.7.0"]]}]
-             :1.6 [:test {:dependencies [[org.clojure/clojure "1.6.0"]]}]
-             :1.5 [:test {:dependencies [[org.clojure/clojure "1.5.1"]]}]
-             :test {:aot [shrubbery.core-test]}})
+  :profiles {:dev {:dependencies [[org.clojure/clojure "1.7.0"]]
+                   :plugins [[codox "0.8.13"]]}
+             :1.6 {:dependencies [[org.clojure/clojure "1.6.0"]]}
+             :1.5 {:dependencies [[org.clojure/clojure "1.5.1"]]}
+             :test {:aot [shrubbery.core-test]}}
+  :codox {:defaults {:doc/format :markdown}
+          :exclude [shrubbery.core-test]}
+  )
