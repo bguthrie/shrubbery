@@ -1,4 +1,4 @@
-(defproject com.gearswithingears/shrubbery "0.3.0"
+(defproject com.gearswithingears/shrubbery "0.3.1"
   :description "A stubbing, spying, and mocking library for Clojure protocols."
   :url "http://github.com/bguthrie/shrubbery"
   :license {:name "Eclipse Public License"

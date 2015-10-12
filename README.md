@@ -55,6 +55,8 @@ Shrubbery is published to [clojars.org](https://clojars.org/com.gearswithingears
 
 ## Usage
 
+[Complete API docs](https://bguthrie.github.io/shrubbery/) are available. For a gentler introduction, see below.
+
 ### Stubs
 
 Stubs are essentially sugar over `reify`, allowing convenient dynamic protocol reification. By default,
