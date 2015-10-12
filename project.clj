@@ -6,4 +6,4 @@
   :profiles {:dev [:test {:dependencies [[org.clojure/clojure "1.7.0"]]}]
              :1.6 [:test {:dependencies [[org.clojure/clojure "1.6.0"]]}]
              :1.5 [:test {:dependencies [[org.clojure/clojure "1.5.1"]]}]
-             :test {:aot :all}})
+             :test {:aot [shrubbery.core-test]}})
