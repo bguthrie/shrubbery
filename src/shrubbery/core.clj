@@ -101,15 +101,6 @@
   (reify-syntax-for-stub [thing]))
 
 (extend-protocol Stubbable
-  ; I'm leaving this here for historical reasons, but am making an explicit choice
-  ; not to support this use-case. If you want to pass a function, just reify the
-  ; protocol the old-fashioned way. I won't intern vars on the caller's behalf.
-  ;
-  ;clojure.lang.AFunction
-  ;(reify-syntax-for-stub [thing arglist]
-  ;  (let [fn-sym (gensym)]
-  ;    (intern *ns* fn-sym thing)
-  ;    `(~fn-sym ~@arglist)))
   clojure.lang.AFunction
   (reify-syntax-for-stub [_] (throw (RuntimeException. "Fns not supported in stub implementations")))
   clojure.lang.Symbol

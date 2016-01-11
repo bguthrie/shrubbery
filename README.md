@@ -1,51 +1,47 @@
 # shrubbery
 
-A stubbing, spying, and mocking library for Clojure protocols.
+A stubbing, spying, and mocking library for Clojure protocols that uses no macros, defines no vars, and is compatible
+with any test framework.
 
 ## Purpose
 
-If you've ever unit-tested a stateful Clojure application, you may have found yourself needing to address functions
-with side effects. For example, an HTTP endpoint may rely on a function that queries a database in order to return a 
-result. One might test interaction with the relevant function by replacing its var at runtime with more desirable 
-behavior; Midje's `given` is one tool for doing so. Suffice it to say that this has a number of drawbacks.
-
-Many Clojure programmers now embrace the use of protocols, passed to functions that need them on demand, as an
-way of inverting those dependencies. This expands the arity of those functions but has the benefit of making 
-their side effects explicit and easily testable. [Component](https://github.com/stuartsierra/component) is one framework
-that encourages this dependency-injected approach.
+If you've ever unit-tested a stateful Clojure application, you may have found yourself needing to address side effects.
+For example, a function may query a database or invoke an external web service. One common way to manage these side
+effects is by declaring and implementing protocols that encapsulate the external call. This has the benefit of making
+them explicit and easily testable. [Component](https://github.com/stuartsierra/component) is one framework that
+encourages this approach.
 
 Although Clojure protocols are a great way to encapsulate operations with side effects, they suffer from a general
-lack of test tooling. Shrubbery provides a small set of basic building blocks for working with them:
+lack of test tooling. Shrubbery provides a small set of basic building blocks for creating protocol implementations
+specifically designed for testing.
+
+Shrubbery is test framework-agnostic, has no external dependencies, makes no attempt to perform runtime var replacement
+and uses no macros. It is simply meant to provide basic protocol implementation support for things like spies and stubs
+in the meagre hope that it makes your tests (and your day) slightly more pleasant.
 
  * `stub`, which accepts a variable list of protocols and a optional hashmap of simple value implementations and
    returns an object that reifies all given protocols;
  * `spy`, which accepts an object with at least one protocol implementation and returns a new implementation that 
-   tracks the number of times each of its members were called;
+   tracks the number of times each of its members were called (queryable with `calls` and `received?`); and
  * `mock`, which wraps a `stub` in a `spy`, allowing callers to supply basic function implementations _and_ assert
-   against those calls; and
- * `calls`/`received?`, which in conjunction with the `Matcher` protocol provide a way to query spies and assert against
-   their state.
+   against those calls.
  
-Both spies and stubs can be used more or less independently; any protocol implementation may be wrapped by a spy, and 
-stubs need not be spies to provide basic test utility.
-
-Shrubbery is test framework-agnostic, has no external dependencies, makes no attempt to perform runtime var replacement
-and uses no macros. It is simply meant to provide basic protocol implementation support in the meagre hope that it makes 
-your tests (and your day) slightly more pleasant.
+Spies and stubs can be used independently; any protocol implementation may be wrapped by a spy, and stubs need not
+themselves be spies.
 
 ### Before You Begin
 
 If you aren't already using a library like [Component](https://github.com/stuartsierra/component) to structure your 
 Clojure application, or do not otherwise make much use of protocols, you may not find this library very interesting. 
-Additionally, for more background on mocking as a strategy, you may find it helpful to read Martin Fowler's classic article on
-the subject, [Mocks Aren't Stubs](http://martinfowler.com/articles/mocksArentStubs.html).
+Additionally, for more background on mocking as a strategy, you may find it helpful to read Martin Fowler's classic
+article on the subject, [Mocks Aren't Stubs](http://martinfowler.com/articles/mocksArentStubs.html).
 
 ### Caveats
 
-Shrubbery uses protocol reflection and `eval` to perform dynamic reification without resorting to macros. I don't 
-especially like using `eval` or recommend others use it, but if there's a way to improve on the situation I haven't 
-found it. Some somewhat-obvious use cases suffer for having to drop down into syntax parsing––for example,
-in limiting the kinds of simple values you can pass as stub implementations.
+Shrubbery uses protocol reflection and `eval` to perform dynamic reification without resorting to macros. Some
+somewhat-obvious use cases suffer for having to drop down into syntax parsing––for example, in limiting the kinds of
+simple values you can pass as stub implementations. If you know of a better way to reify protocol programmatically,
+please get in touch.
 
 ## Releases
 
@@ -62,39 +58,20 @@ Shrubbery is published to [clojars.org](https://clojars.org/com.gearswithingears
 Stubs are essentially sugar over `reify`, allowing convenient dynamic protocol reification. By default,
 a stub without implementations simply returns `nil` for all method calls rather than throwing an
 `IllegalArgumentException`. Optionally, return values for some or all members of named protocols may be provided using a 
-hashmap of method-name to value.
+map of method-name to value.
 
 Once defined, stubs cannot currently be altered, though they may be introspected; see the `Stub` protocol.
 
 ```clojure
-(ns example
-  (:require [clojure.test :refer :all]
-            [shrubbery.core :refer :all]))
-
 (defprotocol DbQueryClient
-  (select [t sql]))
-  
-(defprotocol DbUpdateClient
-  (update [t sql values]))
+  (select-db [client sql] "Returns a list of database records matching the given query."))
 
 (defn find-user [client id]
-  (select client (str "select * from users where id = " id)))
-  
-(defn set-user-name [client user]
-  (update client (str "update users set name = ? where id = ?") [(:name user) (:id user)]))
+  (select-db client (str "select * from users where id = " id)))
 
 (deftest test-find-user
-  (let [subject (stub DbUpdateClient DbQueryClient)]
-    (is (nil? (find-user subject 42))))
-    (is (nil? (set-user-name subject {:id 1 :name "Guybrush Threepwood"})))
-  (let [subject (stub 
-                  DbUpdateClient {:update 1} 
-                  DbQueryClient {:select "wow"}
-                  SomeOtherProtocol
-                  AFourthProtocol)]
-    (is (= "wow" (find-user subject 42))))
-    (is (= 1 (set-user-name subject {:id 1 :name "Guybrush Threepwood"})))
-    ))
+  (is (nil? (find-user (stub DbQueryClient) 42)))
+  (is (= "Guybrush" (-> (stub DbQueryClient {:select [{:name "Guybrush"}]}) (find-user 42) (first) (:name)))))
 ```
 
 ### Spies
@@ -140,8 +117,7 @@ As with stubs, once defined, spies cannot currently be altered, though they may 
     (is (not (received? subject select)))
     (is (= {:id 1} (find-user subject 42)))
     (is (received? subject select))
-    (is (received? subject select [42]))
-    ))
+    (is (received? subject select [42]))))
 ```
 
 ### Mocks
