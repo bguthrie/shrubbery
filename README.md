@@ -64,10 +64,10 @@ Once defined, stubs cannot currently be altered, though they may be introspected
 
 ```clojure
 (defprotocol DbQueryClient
-  (select-db [client sql] "Returns a list of database records matching the given query."))
+  (select [client sql] "Returns a list of database records matching the given query."))
 
 (defn find-user [client id]
-  (select-db client (str "select * from users where id = " id)))
+  (select client (str "select * from users where id = " id)))
 
 (deftest test-find-user
   (is (nil? (find-user (stub DbQueryClient) 42)))
