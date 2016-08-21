@@ -67,8 +67,8 @@
         f-ref (symbol (-> proto :var meta :ns str) (-> sig :name str))]
     `(~f-ref ~args                                           ; (some.ns/foo [this a b c]
        (swap! ~atom-sym increment-args ~f-ref ~@(rest args)) ;   (swap! counts increment-args #'some.ns/foo a b c)
-       (~f-ref ~proxy-sym ~@(rest args)))                    ;   (some.ns/foo proto-impl a b))
-    ))
+       (~f-ref ~proxy-sym ~@(rest args)))))                  ;   (some.ns/foo proto-impl a b))
+
 
 (defn- proto-spy-reify-syntax [atom-sym proxy-sym proto]
   (proxy-syntax-for-single-proto proto (partial proto-fn-with-proxy proxy-sym proto atom-sym)))
@@ -106,8 +106,8 @@
   clojure.lang.Symbol
   (reify-syntax-for-stub [thing] `'~thing)
   java.lang.Object
-  (reify-syntax-for-stub [thing] thing)
-  )
+  (reify-syntax-for-stub [thing] thing))
+
 
 (defn- stub-fn [proto impl-hash [m sig]]
   (let [args              (-> sig :arglists first)
@@ -201,8 +201,8 @@
         new-all-stubs (-> all-stubs (assoc proto revised-proto-stub) vec flatten)]
     (if (spy? s)
       (apply mock new-all-stubs)
-      (apply stub new-all-stubs))
-    ))
+      (apply stub new-all-stubs))))
+
 
 (extend-protocol Matcher
   clojure.lang.AFunction
@@ -220,8 +220,8 @@
          (every? identity)))
   java.lang.Object
   (matches? [matcher value]
-    (= matcher value))
-  )
+    (= matcher value)))
+
 
 (def anything
   "A [[Matcher]] that always returns true."

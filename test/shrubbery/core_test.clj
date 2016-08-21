@@ -31,15 +31,13 @@
       (is (= :hello-foo (foo subject)))
       (is (= 1 (call-count subject foo)))
       (is (= :hello-foo (foo subject)))
-      (is (= 2 (call-count subject foo)))
-      ))
+      (is (= 2 (call-count subject foo)))))
 
   (testing "correct proxy behavior"
     (let [subject (spy proto)]
       (is (= :hello-foo (foo subject)))
       (is (= :hello-bar (bar subject nil)))
-      (is (= :hello-baz (baz subject nil nil)))
-      ))
+      (is (= :hello-baz (baz subject nil nil)))))
 
   (testing "a call counter with simple argument equality"
     (let [subject (spy proto)]
@@ -50,8 +48,7 @@
       (is (= 1 (call-count subject bar ["yes"])))
 
       (bar subject :symbol)
-      (is (= 1 (call-count subject bar [:symbol])))
-      ))
+      (is (= 1 (call-count subject bar [:symbol])))))
 
   (testing "a call counter with regexp matching"
     (let [subject (spy proto)]
@@ -67,8 +64,7 @@
       (is (= 1 (call-count subject bar ["yes"])))
       (is (= 1 (call-count subject bar [#"yess"])))
       (is (= 2 (call-count subject bar [#"yes"])))
-      (is (= 2 (call-count subject bar [#"y*"])))
-      ))
+      (is (= 2 (call-count subject bar [#"y*"])))))
 
   (testing "a call counter that matches anything"
     (let [subject (spy proto)]
@@ -76,8 +72,7 @@
 
       (bar subject "wow such matching")
       (is (= 1 (call-count subject bar)))
-      (is (= 1 (call-count subject bar [anything])))
-      ))
+      (is (= 1 (call-count subject bar [anything])))))
 
   (testing "a call counter that matches multiple arguments"
     (let [subject (spy proto)]
@@ -86,8 +81,7 @@
       (baz subject "hello" "world")
       (is (= 1 (call-count subject baz ["hello" "world"])))
       (is (= 0 (call-count subject baz ["hello" "w"])))
-      (is (= 1 (call-count subject baz ["hello" anything])))
-      ))
+      (is (= 1 (call-count subject baz ["hello" anything])))))
 
   (testing "a call counter with arbitrary matching"
     (let [subject (spy proto)]
@@ -98,16 +92,14 @@
       (is (= 0 (call-count subject bar [#(> % 2)])))
       (bar subject 1)
       (is (= 2 (call-count subject bar [#(> % 0)])))
-      (is (= 1 (call-count subject bar [#(> % 1)])))
-      ))
+      (is (= 1 (call-count subject bar [#(> % 1)])))))
 
   (testing "a protocol in a different namespace"
     (let [impl (reify shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly (duh [t] :uhdoy))
           subject (spy impl)]
       (is (= 0 (call-count subject use-cases/duh)))
       (is (= :uhdoy (shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/duh subject)))
-      (is (= 1 (call-count subject use-cases/duh)))
-      ))
+      (is (= 1 (call-count subject use-cases/duh)))))
 
   (testing "an implementation with multiple protocols across namespaces"
     (let [impl (reify
@@ -132,9 +124,7 @@
 
       (is (= 0 (call-count subject baz)))
       (is (= :baz (baz subject nil nil)))
-      (is (= 1 (call-count subject baz)))
-      ))
-  )
+      (is (= 1 (call-count subject baz))))))
 
 (deftest test-received?
   (testing "a simple received? call"
@@ -146,8 +136,7 @@
       (bar subject "hello")
       (is (received? subject bar))
       (is (received? subject bar ["hello"]))
-      (is (not (received? subject bar ["nonsense"])))
-      )))
+      (is (not (received? subject bar ["nonsense"]))))))
 
 (deftest test-stub
   (testing "that it's an instance"
@@ -164,24 +153,13 @@
     (let [subject (stub AProtocol)]
       (is (nil? (foo subject)))
       (is (nil? (bar subject :hello)))
-      (is (nil? (baz subject :hello :world)))
-      ))
+      (is (nil? (baz subject :hello :world)))))
 
   (testing "with an empty implementation"
     (let [subject (stub AProtocol {})]
       (is (nil? (foo subject)))
       (is (nil? (bar subject :hello)))
-      (is (nil? (baz subject :hello :world)))
-      ))
-
-  (comment
-    (testing "with a let-binding that resolves to a function"
-     (let [some-fn (fn [& args] :foo)
-           subject (stub AProtocol {:foo some-fn :bar some-fn :baz some-fn})]
-       (is (= :foo (foo subject)))
-       (is (= :foo (bar subject :hello)))
-       (is (= :foo (baz subject :hello :world)))
-       )))
+      (is (nil? (baz subject :hello :world)))))
 
   (testing "with a stub impl that resolves to a function"
     (is (thrown? RuntimeException (stub AProtocol {:foo (fn [] :foo)}))))
@@ -190,24 +168,21 @@
     (let [subject (stub AProtocol {:foo 1 :bar "two" :baz 'three})]
       (is (= 1 (foo subject)))
       (is (= "two" (bar subject :hello)))
-      (is (= 'three (baz subject :hello :world)))
-      ))
+      (is (= 'three (baz subject :hello :world)))))
 
   (testing "with a let-binding that resolves to a primitive"
     (let [some-o "some object"
           subject (stub AProtocol {:foo some-o :bar some-o :baz some-o})]
       (is (= "some object" (foo subject)))
       (is (= "some object" (bar subject :hello)))
-      (is (= "some object" (baz subject :hello :world)))
-      ))
+      (is (= "some object" (baz subject :hello :world)))))
 
   (testing "with a let-binding that resolves to the entirety of the stub"
     (let [stuff {:foo 1 :bar "two" :baz 'three}
           subject (stub AProtocol stuff)]
       (is (= 1 (foo subject)))
       (is (= "two" (bar subject :hello)))
-      (is (= 'three (baz subject :hello :world)))
-      ))
+      (is (= 'three (baz subject :hello :world)))))
 
   (testing "a protocol in a different namespace"
     (let [subject (stub shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly {:duh :uhdoy})]
@@ -217,49 +192,42 @@
     (let [subject (stub use-cases/Clearly AProtocol {:foo "foo"})]
       (is (nil? (use-cases/duh subject)))
       (is (= "foo" (foo subject)))
-      (is (nil? (bar subject nil)))
-      ))
- )
+      (is (nil? (bar subject nil))))))
+
 
 (deftest test-returning
   (testing "with no existing stubbed values"
     (let [subject (-> (stub AProtocol)
                       (returning AProtocol {:foo "bar"}))]
-      (is (= "bar" (foo subject)))
-      ))
+      (is (= "bar" (foo subject)))))
 
   (testing "'changing' an existing stubbed value"
     (let [subject (-> (stub AProtocol {:foo "foo"})
                       (returning AProtocol {:foo "foo2"}))]
-      (is (= "foo2" (foo subject)))
-      ))
+      (is (= "foo2" (foo subject)))))
 
   (testing "existing implementations of the same protocol are unaltered"
     (let [subject (-> (stub AProtocol {:foo "foo" :bar "bar"})
                       (returning AProtocol {:foo "foo2"}))]
       (is (= "bar" (bar subject nil)))
-      (is (= "foo2" (foo subject)))
-      ))
+      (is (= "foo2" (foo subject)))))
 
   (testing "'changing' multiple stubbed values at once"
     (let [subject (-> (stub AProtocol {:foo "foo" :bar "bar"})
                       (returning AProtocol {:foo "foo2" :bar "bar2"}))]
       (is (= "foo2" (foo subject)))
-      (is (= "bar2" (bar subject nil)))
-      ))
+      (is (= "bar2" (bar subject nil)))))
 
   (testing "existing implementations of other protocols are unaltered"
     (let [subject (-> (stub AProtocol {:foo "foo"} use-cases/Clearly {:duh "duh"})
                       (returning AProtocol {:foo "foo2"}))]
       (is (= "duh" (use-cases/duh subject)))
-      (is (= "foo2" (foo subject)))
-      ))
+      (is (= "foo2" (foo subject)))))
 
   (testing "with no prior implementations of the named protocol"
     (let [subject (-> (stub AProtocol)
                       (returning use-cases/Clearly {:duh "duh"}))]
-      (is (= "duh" (use-cases/duh subject)))
-      ))
+      (is (= "duh" (use-cases/duh subject)))))
 
   (testing "with a mock rather than a stub"
     (let [subject (-> (mock AProtocol {:foo "foo"})
@@ -269,21 +237,18 @@
       (is (received? subject foo))))
 
   (testing "if given an object that is neither a stub or a mock"
-    (is (thrown? IllegalArgumentException (returning (Object.)))))
-  )
+    (is (thrown? IllegalArgumentException (returning (Object.))))))
 
 (deftest test-mock
   (testing "with no provided implementations"
     (let [subject (mock AProtocol)]
       (is (nil? (foo subject)))
-      (is (received? subject foo))
-      ))
+      (is (received? subject foo))))
 
   (testing "with an empty implementation"
     (let [subject (mock AProtocol {})]
       (is (nil? (foo subject)))
-      (is (received? subject foo))
-      ))
+      (is (received? subject foo))))
 
   (testing "with a basic implementation"
     (let [subject (mock AProtocol {:bar 5})]
@@ -291,9 +256,8 @@
       (is (received? subject bar))
       (is (not (received? subject foo)))
       (is (received? subject bar ["wow"]))
-      (is (not (received? subject bar ["woo"])))
-      ))
-  )
+      (is (not (received? subject bar ["woo"]))))))
+
 
 (defrecord RecProtocol []
   AProtocol)
@@ -321,5 +285,5 @@
 
   (testing "with a non-local protocol"
     (let [subject (reify shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly)]
-      (is (= #{shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly} (protocols subject)))))
-  )
+      (is (= #{shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly} (protocols subject))))))
+
