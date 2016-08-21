@@ -64,14 +64,20 @@ Once defined, stubs cannot currently be altered, though they may be introspected
 
 ```clojure
 (defprotocol DbQueryClient
-  (select [client sql] "Returns a list of database records matching the given query."))
+  (select [client sql] "Returns a list of database records matching the given query.")
+  (insert [client sql] "Inserts a record using the given SQL."))
+
+(def database-stub
+  (stub DbQueryClient
+    {:select [{:name "Guybrush"}]
+     :insert (throws RuntimeException "Insert not supported"})
 
 (defn find-user [client id]
   (select client (str "select * from users where id = " id)))
 
 (deftest test-find-user
   (is (nil? (find-user (stub DbQueryClient) 42)))
-  (is (= "Guybrush" (-> (stub DbQueryClient {:select [{:name "Guybrush"}]}) (find-user 42) (first) (:name)))))
+  (is (= "Guybrush" (-> database-stub (find-user 42) (first) (:name)))))
 ```
 
 ### Spies
@@ -142,8 +148,7 @@ call `stub` with the given arguments, then wrap that stub in a `spy`.
     (is (not (received? subject select)))
     (is (= {:id 1} (find-user subject 42)))
     (is (received? subject select))
-    (is (received? subject select [42]))
-    ))
+    (is (received? subject select [42]))))
 ```
 
 ### Matchers

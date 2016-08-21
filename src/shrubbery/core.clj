@@ -108,7 +108,6 @@
   java.lang.Object
   (reify-syntax-for-stub [thing] thing))
 
-
 (defn- stub-fn [proto impl-hash [m sig]]
   (let [args              (-> sig :arglists first)
         f-sym             (-> sig :name)
@@ -203,6 +202,12 @@
       (apply mock new-all-stubs)
       (apply stub new-all-stubs))))
 
+(defn throws
+  "Given a class and a list of constructor args, returns an object that, when used as part of a [[stub]] construct, will
+  create and then throw a Throwable of the given type, constructed with the given args."
+  [^Class throwable-class & args]
+  (reify Stubbable
+    (reify-syntax-for-stub [_] `(throw (new ~throwable-class ~@args)))))
 
 (extend-protocol Matcher
   clojure.lang.AFunction
