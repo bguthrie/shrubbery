@@ -192,7 +192,14 @@
     (let [subject (stub use-cases/Clearly AProtocol {:foo "foo"})]
       (is (nil? (use-cases/duh subject)))
       (is (= "foo" (foo subject)))
-      (is (nil? (bar subject nil))))))
+      (is (nil? (bar subject nil)))))
+
+  (testing "with an object wrapped using `throws`"
+    (let [subject (stub AProtocol {:foo (throws RuntimeException)})]
+      (is (thrown? RuntimeException (foo subject))))
+    (let [subject (stub AProtocol {:foo (throws RuntimeException "foo")})]
+      (is (thrown? RuntimeException (foo subject)))
+      (is (thrown-with-msg? RuntimeException #"foo" (foo subject))))))
 
 
 (deftest test-returning
@@ -287,3 +294,16 @@
     (let [subject (reify shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly)]
       (is (= #{shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly} (protocols subject))))))
 
+
+(deftest test-reify-syntax-for-stub
+  (testing "with a symbol"
+    (is (= '(quote foo) (reify-syntax-for-stub 'foo))))
+  (testing "with a function"
+    (is (thrown? RuntimeException (reify-syntax-for-stub (fn [] "hello world")))))
+  (testing "with an immediate value"
+    (is (= '"foo" (reify-syntax-for-stub "foo")))
+    (is (= '1 (reify-syntax-for-stub 1)))
+    (is (= '{} (reify-syntax-for-stub {}))))
+  (testing "with a Throwable"
+    (is (= `(throw (new ~RuntimeException "foo"))
+            (reify-syntax-for-stub (throws RuntimeException "foo"))))))
