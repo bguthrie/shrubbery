@@ -5,15 +5,18 @@
             [shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases :as use-cases]))
 
 (defprotocol AProtocol
-  (foo [this])
-  (bar [this that])
-  (baz [this that the-other-thing]))
+  (foo  [this])
+  (bar  [this that])
+  (baz  [this that the-other-thing])
+  (quux [this] [this that]))
 
 (def proto
   (reify AProtocol
     (foo [_] :hello-foo)
     (bar [_ _] :hello-bar)
-    (baz [_ _ _] :hello-baz)))
+    (baz [_ _ _] :hello-baz)
+    (quux [_] :hello-quux-1)
+    (quux [_ _] :hello-quux-2)))
 
 (deftest test-spy
   (testing "with illegal arguments"
@@ -37,7 +40,10 @@
     (let [subject (spy proto)]
       (is (= :hello-foo (foo subject)))
       (is (= :hello-bar (bar subject nil)))
-      (is (= :hello-baz (baz subject nil nil)))))
+      (is (= :hello-baz (baz subject nil nil)))
+      (is (= :hello-quux-1 (quux subject)))
+      (is (= :hello-quux-2 (quux subject nil)))))
+
 
   (testing "a call counter with simple argument equality"
     (let [subject (spy proto)]
@@ -153,36 +159,46 @@
     (let [subject (stub AProtocol)]
       (is (nil? (foo subject)))
       (is (nil? (bar subject :hello)))
-      (is (nil? (baz subject :hello :world)))))
+      (is (nil? (baz subject :hello :world)))
+      (is (nil? (quux subject)))
+      (is (nil? (quux subject :hello)))))
 
   (testing "with an empty implementation"
     (let [subject (stub AProtocol {})]
       (is (nil? (foo subject)))
       (is (nil? (bar subject :hello)))
-      (is (nil? (baz subject :hello :world)))))
+      (is (nil? (baz subject :hello :world)))
+      (is (nil? (quux subject)))
+      (is (nil? (quux subject :hello)))))
 
   (testing "with a stub impl that resolves to a function"
     (is (thrown? RuntimeException (stub AProtocol {:foo (fn [] :foo)}))))
 
   (testing "with an immediate simple primitive"
-    (let [subject (stub AProtocol {:foo 1 :bar "two" :baz 'three})]
+    (let [subject (stub AProtocol {:foo 1 :bar "two" :baz 'three :quux :four})]
       (is (= 1 (foo subject)))
       (is (= "two" (bar subject :hello)))
-      (is (= 'three (baz subject :hello :world)))))
+      (is (= 'three (baz subject :hello :world)))
+      (is (= :four (quux subject)))
+      (is (= :four (quux subject :hello)))))
 
   (testing "with a let-binding that resolves to a primitive"
     (let [some-o "some object"
-          subject (stub AProtocol {:foo some-o :bar some-o :baz some-o})]
+          subject (stub AProtocol {:foo some-o :bar some-o :baz some-o :quux some-o})]
       (is (= "some object" (foo subject)))
       (is (= "some object" (bar subject :hello)))
-      (is (= "some object" (baz subject :hello :world)))))
+      (is (= "some object" (baz subject :hello :world)))
+      (is (= "some object" (quux subject)))
+      (is (= "some object" (quux subject :hello)))))
 
   (testing "with a let-binding that resolves to the entirety of the stub"
-    (let [stuff {:foo 1 :bar "two" :baz 'three}
+    (let [stuff {:foo 1 :bar "two" :baz 'three :quux :four}
           subject (stub AProtocol stuff)]
       (is (= 1 (foo subject)))
       (is (= "two" (bar subject :hello)))
-      (is (= 'three (baz subject :hello :world)))))
+      (is (= 'three (baz subject :hello :world)))
+      (is (= :four (quux subject)))
+      (is (= :four (quux subject :hello)))))
 
   (testing "a protocol in a different namespace"
     (let [subject (stub shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases/Clearly {:duh :uhdoy})]

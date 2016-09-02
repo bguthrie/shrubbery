@@ -13,5 +13,5 @@
            result# (= count# 1)]
        (if result#
          (do-report {:type :pass :message ~msg :expected '~form :actual (get (calls spy#) method#)})
-         (do-report {:type :fail :message ~msg :expected '~form :actual (format "received %s times; other calls: %s" count# (or (get (calls spy#) method#) []))})
-       ))))
+         (do-report {:type :fail :message ~msg :expected '~form :actual (format "received %s times; other calls: %s" count# (or (get (calls spy#) method#) []))})))))
+

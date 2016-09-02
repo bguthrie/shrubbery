@@ -53,25 +53,32 @@
        (map var-get)
        (set)))
 
-(defn- proxy-syntax-for-single-proto [proto f]
-  (let [mimpls (map f (-> proto :sigs))]
+(defn unique-list-of-all-sig-names-and-arglists [proto]
+  (reduce
+    (fn [coll [nm sig]]
+      (concat coll
+              (map (fn [lst] [(:name sig) lst]) (:arglists sig))))
+    []
+    (:sigs proto)))
+
+(defn- proxy-syntax-for-single-proto [proto syntax-generator-fn]
+  (let [all-unique-sigs (unique-list-of-all-sig-names-and-arglists proto)
+        mimpls (map syntax-generator-fn all-unique-sigs)]
     `(~(:on proto)
        ~@mimpls)))
 
 (defn ^:no-doc increment-args [counts-state m & args]
   (assoc counts-state m (conj (counts-state m) args)))
 
-(defn- proto-fn-with-proxy
-  [proxy-sym proto atom-sym [m sig]]
-  (let [args  (-> sig :arglists first)
-        f-ref (symbol (-> proto :var meta :ns str) (-> sig :name str))]
-    `(~f-ref ~args                                           ; (some.ns/foo [this a b c]
-       (swap! ~atom-sym increment-args ~f-ref ~@(rest args)) ;   (swap! counts increment-args #'some.ns/foo a b c)
-       (~f-ref ~proxy-sym ~@(rest args)))))                  ;   (some.ns/foo proto-impl a b))
-
+(defn- syntax-for-spy-proxy-fn
+  [atom-sym proxy-sym proto [sig-name sig-arglist]]
+  (let [f-ref (symbol (-> proto :var meta :ns str) (str sig-name))]
+    `(~f-ref ~sig-arglist                                           ; (some.ns/foo [this a b c]
+       (swap! ~atom-sym increment-args ~f-ref ~@(rest sig-arglist)) ;   (swap! counts increment-args #'some.ns/foo a b c)
+       (~f-ref ~proxy-sym ~@(rest sig-arglist)))))                  ;   (some.ns/foo proto-impl a b))
 
 (defn- proto-spy-reify-syntax [atom-sym proxy-sym proto]
-  (proxy-syntax-for-single-proto proto (partial proto-fn-with-proxy proxy-sym proto atom-sym)))
+  (proxy-syntax-for-single-proto proto (partial syntax-for-spy-proxy-fn atom-sym proxy-sym proto)))
 
 (declare ^:dynamic ^:no-doc *proxy*)
 
@@ -108,14 +115,12 @@
   java.lang.Object
   (reify-syntax-for-stub [thing] thing))
 
-(defn- stub-fn [proto impl-hash [m sig]]
-  (let [args              (-> sig :arglists first)
-        f-sym             (-> sig :name)
-        proto-ns          (-> proto :var meta :ns)
-        f-ref             (symbol (str proto-ns) (str f-sym))
-        stub-impl-or-nil  (get impl-hash m)
+(defn- stub-fn [proto impl-hash [sig-name sig-arglist]]
+  (let [proto-ns          (-> proto :var meta :ns)
+        f-ref             (symbol (str proto-ns) (str sig-name))
+        stub-impl-or-nil  (get impl-hash (keyword sig-name))
         stub-value        (when-not (nil? stub-impl-or-nil) (reify-syntax-for-stub stub-impl-or-nil))]
-    `(~f-ref ~args ~stub-value)))
+    `(~f-ref ~sig-arglist ~stub-value)))
 
 (defn- stub-reify-syntax [[proto impls]]
   (proxy-syntax-for-single-proto proto (partial stub-fn proto impls)))
