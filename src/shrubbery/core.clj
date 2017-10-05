@@ -172,6 +172,7 @@
   (spy
     (apply stub protos-and-impls)))
 
+
 (defn call-count
   "Given a [[spy]], a var, and an optional vector of args, return the number of times the spy received
   the method. If given args, filters the list of calls by matching the given args. Matched args may implement the
@@ -179,6 +180,8 @@
   ([aspy avar]
    (-> (calls aspy) (get avar) (count)))
   ([aspy avar args]
+   (when-not (vector? args)
+     (throw (IllegalArgumentException. "Please supply a vector of arguments to check against this spy.")))
    (->>
      (get (calls aspy) avar)
      (filter #(matches? args %))

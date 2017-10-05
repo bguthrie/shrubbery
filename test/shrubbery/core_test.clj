@@ -2,7 +2,8 @@
   (:require [clojure.test :refer :all]
             [shrubbery.core :refer :all]
             [shrubbery.clojure.test :refer :all]
-            [shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases :as use-cases]))
+            [shrubbery.is.a.great.library.with.lots.of.super-obvious.use-cases :as use-cases])
+  (:import (java.util ArrayList)))
 
 (defprotocol AProtocol
   (foo  [this])
@@ -54,7 +55,10 @@
       (is (= 1 (call-count subject bar ["yes"])))
 
       (bar subject :symbol)
-      (is (= 1 (call-count subject bar [:symbol])))))
+      (is (= 1 (call-count subject bar [:symbol])))
+
+      (bar subject (doto (ArrayList.) (.add 1)))
+      (is (= 1 (call-count subject bar [(doto (ArrayList.) (.add 1))])))))
 
   (testing "a call counter with regexp matching"
     (let [subject (spy proto)]
@@ -130,7 +134,14 @@
 
       (is (= 0 (call-count subject baz)))
       (is (= :baz (baz subject nil nil)))
-      (is (= 1 (call-count subject baz))))))
+      (is (= 1 (call-count subject baz)))))
+
+  (testing "a call counter with a single supplied argument that isn't a vector"
+    (let [subject (spy proto)]
+      (is (thrown? IllegalArgumentException
+                   (call-count subject bar "hello")))
+      (is (thrown? IllegalArgumentException
+                   (call-count subject bar :foo))))))
 
 (deftest test-received?
   (testing "a simple received? call"
