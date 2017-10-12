@@ -5,7 +5,7 @@
 (defprotocol Spy
   "A protocol shared by spies."
   (calls [t]
-    "Returns a map of function names to lists of received\n  args, one for each time the function is called.")
+    "Returns a map of function names to lists of received args, one for each time the function is called.")
   (proxied [t]
     "Returns the underlying object this spy proxies its calls to."))
 
@@ -44,8 +44,7 @@
       (find-var (symbol ns-name proto-name)))))
 
 (defn protocols
-  "Given an object, attempt to return the set of all protocols it reifies. Warning: this may choke
-  on nonstandard package and namespace choices. Pull requests and bug reports welcome."
+  "Given an object, attempt to return the complete set of protocols it reifies."
   [o]
   (->> (supers (class o))
        (map find-proto-var)

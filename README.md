@@ -17,7 +17,8 @@ specifically designed for testing.
 
 Shrubbery is test framework-agnostic, has no external dependencies, makes no attempt to perform runtime var replacement
 and uses no macros. It is simply meant to provide basic protocol implementation support for things like spies and stubs
-in the meagre hope that it makes your tests (and your day) slightly more pleasant.
+in the meagre hope that it makes your tests (and your day) slightly more pleasant. To that end, it offers three
+test constructs:
 
  * `stub`, which accepts a variable list of protocols and a optional hashmap of simple value implementations and
    returns an object that reifies all given protocols;
@@ -28,6 +29,14 @@ in the meagre hope that it makes your tests (and your day) slightly more pleasan
  
 Spies and stubs can be used independently; any protocol implementation may be wrapped by a spy, and stubs need not
 themselves be spies.
+
+Spies and mocks may be queried, for test assertion purposes, with the following two functions:
+
+ * `call-count`, which accepts a spy, a var, and an optional vector of arguments, and returns the call count for that
+   spy's var, give those specific arguments if applicable.
+ * `received?`, which returns true if the `call-count` for the given spy returns is greater than or equal to 1.
+
+Additionally, Shrubbery exposes `clojure.test` sugar in the form of `shrubbery.clojure.test/received?`.
 
 ### Before You Begin
 
@@ -60,7 +69,8 @@ a stub without implementations simply returns `nil` for all method calls rather 
 `IllegalArgumentException`. Optionally, return values for some or all members of named protocols may be provided using a 
 map of method-name to value.
 
-Once defined, stubs cannot currently be altered, though they may be introspected; see the `Stub` protocol.
+Stubs may be introspected via the `Stub` protocol, and immutable transformations can be made with the `returning`
+function.
 
 ```clojure
 (defprotocol DbQueryClient
@@ -83,9 +93,9 @@ Once defined, stubs cannot currently be altered, though they may be introspected
 ### Spies
 
 A test spy is an object that understands how many times its members have been called, and tracks the arguments those
-members were called with. Shrubbery spies take an object that implements at least one protocol, attempts to infer the
-protocols it implements, and returns a new implementation that proxies all calls to the starting implementation, tracking
-their usages along the way. 
+members were called with. Shrubbery's `spy` takes a Clojure object that implements at least one protocol, attempts to
+infer the protocol(s) it implements, and returns a new implementation that proxies all calls to the starting
+implementation, tracking their usages along the way.
 
 Note that Shrubbery provides no attempt to _automatically_ verify call counts, as with classic mocking frameworks: 
 currently, you as the test author are expected to perform your own assertions against the spy once the relevant methods
@@ -101,7 +111,7 @@ note that regular expressions are treated as if they are intended to be matched 
 for direct object equality. This is useful in cases where you might want to make a rough assertion against a string's
 contents but don't care about an exact match.
 
-As with stubs, once defined, spies cannot currently be altered, though they may be introspected; see the `Spy` protocol.
+Once defined, spies cannot currently be altered, though they may be introspected; see the `Spy` protocol.
  
 ```clojure
 (ns example
@@ -155,7 +165,15 @@ call `stub` with the given arguments, then wrap that stub in a `spy`.
 
 Sometimes it's helpful, when checking the spies and mocks for the arguments they're called with, to perform partial
 matching rather than full equality matching. Shrubbery defines a protocol, `Matcher`, with one function, `matches?`,
-implements some special match cases. Regular expressions are one notable case where this is useful. For example:
+which performs a standard `=` check by default but defines several special cases:
+Regular expressions are one notable case where this is useful. For example:
+
+ * `java.util.regex.Pattern` objects use `re-seq` on the received object.
+ * `clojure.lang.ArraySeq` objects performs `match?` on all members of the received object.
+ * `clojure.lang.Fn` objects are invoked directly with the received object.
+ * `anything` is a special matcher that always returns true.
+
+As an example of this in use with regexes specifically:
 
 ```clojure
 (deftest test-db-client
@@ -169,13 +187,6 @@ implements some special match cases. Regular expressions are one notable case wh
     ))
 ```
 
-Shrubbery's `match?` function performs a standard `=` check by default, but defines several special cases:
-
- * `java.util.regex.Pattern` objects use `re-seq` on the received object
- * `clojure.lang.ArraySeq` objects performs `match?` on all members of the received object
- * `clojure.lang.Fn` objects are invoked directly with the received object
- * `anything` is a special matcher that always returns true
- 
 ## License
 
 ![Then when you have found the shrubbery](https://31.media.tumblr.com/e72f365e1656130bbaebd2a2431c958b/tumblr_nia9ciTmpj1u0k6deo4_250.gif)
