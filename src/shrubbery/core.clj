@@ -5,7 +5,10 @@
 (defprotocol Spy
   "A protocol shared by spies."
   (calls [t]
-    "Returns a map of function names to lists of received args, one for each time the function is called.")
+    "Returns a map of function names to lists of received args, one for each time the function is called."))
+
+(defprotocol Proxy
+  "A protocol shared by proxies."
   (proxied [t]
     "Returns the underlying object this spy proxies its calls to."))
 
@@ -24,15 +27,25 @@
   [p]
   (boolean (:on-interface p)))
 
+(defn reifies?
+  "True if o reifies the given protocol."
+  [o proto]
+  (-> proto :on-interface (instance? o)))
+
 (defn stub?
   "True if s reifies Stub."
   [s]
-  (instance? (:on-interface Stub) s))
+  (reifies? s Stub))
 
 (defn spy?
   "True if s reifies Spy."
   [s]
-  (instance? (:on-interface Spy) s))
+  (reifies? s Spy))
+
+(defn proxy?
+  "True if p reifies Proxy."
+  [s]
+  (reifies? s Proxy))
 
 (defn- find-proto-var
   "Attempts to find the protocol var representing the given class, or nil if none found."
@@ -84,8 +97,9 @@
 (defn spy
   "Given an object implementing one or more protocols, returns a new object that records each call to underlying
   protocol functions, then proxies to the original implementation. The returned object also implements `Spy`, which
-  exposes those calls. If an explicit list of protocols is not given, the list will be inferred from the given object.
-  For spies with added implementation, see [[mock]]. For queryies against spies, see [[call-count]] and [[received?]]."
+  exposes those calls, and `Proxy`, which exposes the proxied object. If an explicit list of protocols is not given,
+  the list will be inferred from the given object. For spies with added implementation, see [[mock]]. For queryies
+  against spies, see [[call-count]] and [[received?]]."
   ([o]
    (spy o (protocols o)))
   ([o protos]
@@ -94,12 +108,13 @@
 
    (let [atom-sym (gensym "counts")
          proxy-sym (gensym "proxy")
-         spy-syntax `(Spy (calls [t#] (deref ~atom-sym)) (proxied [t#] ~proxy-sym))
+         spy-syntax `(Spy (calls [t#] (deref ~atom-sym)))
+         proxy-syntax `(Proxy (proxied [t#] ~proxy-sym))
          all-protos-syntax (map (partial proto-spy-reify-syntax atom-sym proxy-sym) protos)
          everything `(let [~atom-sym (atom {})
                            ~proxy-sym *proxy*]
                        (reify
-                         ~@(reduce concat (conj all-protos-syntax spy-syntax))))]
+                         ~@(reduce concat (conj all-protos-syntax spy-syntax proxy-syntax))))]
      (binding [*proxy* o]
        (eval everything)))))
 
