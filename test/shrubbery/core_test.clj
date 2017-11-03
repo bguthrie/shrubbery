@@ -334,3 +334,13 @@
   (testing "with a Throwable"
     (is (= `(throw (new ~RuntimeException "foo"))
             (reify-syntax-for-stub (throws RuntimeException "foo"))))))
+
+(deftest test-stub-record
+  (testing "is an instance"
+    (is (stub? (stub-record {} AProtocol))))
+
+  (testing "is maplike"
+    (is (= 1 (count (stub-record {} AProtocol))))
+    (is (nil? (:foo (stub-record {} AProtocol))))
+    (is (= "bar" (-> {} (stub-record AProtocol) (assoc :foo "bar") :foo)))
+    (is (empty? (stub-record {} AProtocol)))))

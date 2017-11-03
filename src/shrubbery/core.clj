@@ -1,6 +1,7 @@
 (ns shrubbery.core
   "A collection of functions for creating and querying stubs, spies, and mocks."
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str])
+  (:import (clojure.lang IPersistentCollection Associative ILookup)))
 
 (defprotocol Spy
   "A protocol shared by spies."
@@ -8,7 +9,7 @@
     "Returns a map of function names to lists of received args, one for each time the function is called."))
 
 (defprotocol Proxy
-  "A protocol shared by proxies."
+  "A protocol shared by protocol proxies."
   (proxied [t]
     "Returns the underlying object this spy proxies its calls to."))
 
@@ -89,6 +90,12 @@
        (swap! ~atom-sym increment-args ~f-ref ~@(rest sig-arglist)) ;   (swap! counts increment-args #'some.ns/foo a b c)
        (~f-ref ~proxy-sym ~@(rest sig-arglist)))))                  ;   (some.ns/foo proto-impl a b))
 
+(defn- syntax-for-proxy-fn
+  [proxy-sym proto [sig-name sig-arglist]]
+  (let [f-ref (symbol (-> proto :var meta :ns str) (str sig-name))]
+    `(~f-ref ~sig-arglist                                           ; (some.ns/foo [this a b c]
+       (~f-ref ~proxy-sym ~@(rest sig-arglist)))))                  ;   (some.ns/foo proto-impl a b))
+
 (defn- proto-spy-reify-syntax [atom-sym proxy-sym proto]
   (proxy-syntax-for-single-proto proto (partial syntax-for-spy-proxy-fn atom-sym proxy-sym proto)))
 
@@ -129,7 +136,7 @@
   java.lang.Object
   (reify-syntax-for-stub [thing] thing))
 
-(defn- stub-fn [proto impl-hash [sig-name sig-arglist]]
+(defn- syntax-for-stub-fn [proto impl-hash [sig-name sig-arglist]]
   (let [proto-ns          (-> proto :var meta :ns)
         f-ref             (symbol (str proto-ns) (str sig-name))
         stub-impl-or-nil  (get impl-hash (keyword sig-name))
@@ -137,7 +144,7 @@
     `(~f-ref ~sig-arglist ~stub-value)))
 
 (defn- stub-reify-syntax [[proto impls]]
-  (proxy-syntax-for-single-proto proto (partial stub-fn proto impls)))
+  (proxy-syntax-for-single-proto proto (partial syntax-for-stub-fn proto impls)))
 
 (defn- impl? [maybe-impl]
   (and (not (protocol? maybe-impl)) (map? maybe-impl)))
@@ -158,6 +165,7 @@
 
 (declare ^:dynamic ^:no-doc *stubs*)
 
+
 (defn stub
   "Given a variable number of protocols, each followed by an optional hashmap of simple implementations, returns a new
   object implementing those protocols. Where no function implementation is provided, calls to that protocol function
@@ -176,6 +184,63 @@
                       (reify ~@(reduce concat all-protos-syntax)))]
 
     (binding [*stubs* new-protos-and-impls]
+      (eval everything))))
+
+(defn stub-record
+  "Given a variable number of protocols, each followed by an optional hashmap of simple implementations, returns a new
+  object implementing those protocols. The returned object additionally behaves like a record. For usage, see [[stub]]."
+  [record & protos-and-impls]
+
+  (when (or (empty? protos-and-impls) (not (protocol? (first protos-and-impls))))
+    (throw (IllegalArgumentException. (str "Must provide at least one protocol to stub; given " protos-and-impls))))
+
+  (let [new-protos-and-impls (expand-proto-stubs protos-and-impls)
+        stub-impls (map stub-reify-syntax new-protos-and-impls)
+        stubs-sym (gensym "stubs")
+        proxy-sym (gensym "proxy")
+        stub-syntax `(Stub (all-stubs [_] ~stubs-sym))
+        persistent-coll-syntax `(clojure.lang.IPersistentCollection
+                                  ;(~'cons [this# obj#]
+                                  ;  (stub-record (apply stub (.cons ~proxy-sym obj#) ~stubs-sym)))
+                                  (~'count [this#]
+                                    (.count ~proxy-sym))
+                                  (~'empty [this#]
+                                    (.empty ~proxy-sym))
+                                  (~'equiv [this# obj#]
+                                    (.equiv ~proxy-sym obj#)))
+        associative-syntax `(clojure.lang.Associative
+                              (~'assoc [this# k# v#]
+                                (apply stub-record (cons (.assoc ~proxy-sym k# v#) (first ~stubs-sym))))
+                              (~'containsKey [this# k#]
+                                (.containsKey ~proxy-sym k#))
+                              (~'entryAt [this# v#]
+                                (println "finding" v#)
+                                (.entryAt ~proxy-sym v#)))
+        lookup-syntax `(clojure.lang.ILookup
+                         (~'valAt [this# key#]
+                           (.valAt ~proxy-sym key#))
+                         (~'valAt [this# key# not-found#]
+                           (.valAt ~proxy-sym key# not-found#)))
+        seqable-syntax `(clojure.lang.Seqable
+                          (~'seq [this#]
+                            (.seq ~proxy-sym)))
+        seq-syntax `(clojure.lang.ISeq
+                      (~'first [this#]
+                        (.first ~proxy-sym))
+                      (~'next [this#]
+                        (.next ~proxy-sym))
+                      (~'more [this#]
+                        (.more ~proxy-sym))
+                      (~'cons [this# obj#]
+                        (apply stub-record (cons (.cons ~proxy-sym obj#) (first ~stubs-sym)))))
+        all-protos-syntax (conj stub-impls (concat stub-syntax persistent-coll-syntax associative-syntax lookup-syntax seq-syntax seqable-syntax))
+        everything `(let [~stubs-sym *stubs*
+                          ~proxy-sym *proxy*]
+                      (reify
+                        ~@(reduce concat all-protos-syntax)))]
+    (binding [*stubs* new-protos-and-impls
+              *proxy* record]
+      (println everything)
       (eval everything))))
 
 (defn mock
